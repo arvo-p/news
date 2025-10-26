@@ -1,0 +1,2 @@
+gcc -o test test_curl.c -IC:\MinGW\include -lcurl
+findout include library in compilation to solve dependencies
