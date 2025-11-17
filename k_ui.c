@@ -159,31 +159,27 @@ int getEntriesNum(){
 	}
 }
 
-void * winResize(void * arg){
-	CONSOLE_SCREEN_BUFFER_INFO csbi;
-
-	while(1){	
+void * winResize_Loop(void * arg){
+	int m = display_mode * (-2) + 1;
+	while(1){
+		CONSOLE_SCREEN_BUFFER_INFO csbi;
 		GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
 		winSZ[0] = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-		winSZ[1] = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+		winSZ[1] = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;	
 
-		if(winSZ[0] > displayThreshold && display_mode == 1){
-			display_mode = 0;
-			tabs_updateDisplayMode(selected_tab);
-		}
+		if(winSZ[0] != winSZ[2] || winSZ[1] != winSZ[3]){
 		
-		else if(winSZ[0] < displayThreshold && display_mode == 0){
-			display_mode = 1;
-			tabs_updateDisplayMode(selected_tab);
-		}
+			if(winSZ[0]*m > displayThreshold*m){
+				display_mode != display_mode;
+				m = display_mode * (-2) + 1;
+				tabs_updateDisplayMode(selected_tab);
+			}
 
-		else if(winSZ[0] != winSZ_old[0] || winSZ[1] != winSZ_old[1]){
 			draw_update(true);
 		}
 
-		winSZ_old[0] = winSZ[0];
-		winSZ_old[1] = winSZ[1];
-		
+		winSZ[2] = winSZ[0];
+		winSZ[3] = winSZ[1];
 		Sleep(300);
 	}
 

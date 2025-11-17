@@ -119,7 +119,7 @@ int LoadCategoryGroups(){
 	return 0;
 }
 
-int LoadEntry(char * line, entry * new_entry, entry ** previous_entry, entry_parent ** previous_parent, int * n_parent){
+int LoadEntry(char * line, entry * new_entry, entry ** previous_entry, int * n_parent){
 	entry_parent * new_parent = NULL;
 
 	//Find delimiter
@@ -171,6 +171,7 @@ int LoadEntry(char * line, entry * new_entry, entry ** previous_entry, entry_par
 	
 	int createNewParent = 1;
 	
+
 	for(int i=0;eP_ptr;i++){
 		if(strncmp(eP_ptr->url, new_entry->url_nohttp,pos)==0){
 			createNewParent = 0;
@@ -185,26 +186,23 @@ int LoadEntry(char * line, entry * new_entry, entry ** previous_entry, entry_par
 	new_child->next = NULL;
 
 	if(createNewParent){	
-		*previous_parent = new_parent;
 		new_parent = malloc(sizeof(struct entry_parent));
 		new_parent->id = ((*n_parent)++);
 		new_parent->next = NULL;
 
-		for(int j=0;j<pos;j++){
-			new_parent->url[j] = new_entry->url_nohttp[j];
-		}
+		for(int j=0;j<pos;j++) new_parent->url[j] = new_entry->url_nohttp[j];
 		new_parent->url[pos] = 0;
 
-		if((*previous_parent) != NULL){
-			(*previous_parent)->next = new_parent;
-		}
+		if(initial_parent != NULL)
+			new_parent->next = initial_parent;
 
 		new_parent->first_child = (void *)new_child; 
 		new_parent->child_count = 0;
 
-		if(!initial_parent) initial_parent = new_parent;
+		initial_parent = new_parent;
 		eP_ptr = new_parent;
 	}else{
+	
 		child_entry * cE_ptr = (child_entry *) eP_ptr->first_child;
 		cE_ptr->previous = new_child;
 		new_child->next = cE_ptr;
@@ -271,7 +269,6 @@ int LoadEntry(char * line, entry * new_entry, entry ** previous_entry, entry_par
 	// Set other parameters, will be retrieved later
 	new_entry->seen = 0;
 	new_entry->downloaded = 0;
-	new_entry->highlighted = 0;
 
 	//new_entry->next=NULL;
 	new_entry->previous=NULL;
@@ -312,7 +309,7 @@ int LoadEntries(){
 			entry_block->start_index = 0;
 		}
 
-		LoadEntry(line, &entry_block->entry[31-(i%32)], &previous_entry, &previous_parent, &n_parent);
+		LoadEntry(line, &entry_block->entry[31-(i%32)], &previous_entry, &n_parent);
 		i++;
 	}
 	entry_block->start_index = 31-((i-1)%32);
@@ -321,7 +318,6 @@ int LoadEntries(){
 	entries_sz=i;
 
 	fclose(fp);
-
 	return 0;
 }
 

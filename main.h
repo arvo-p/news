@@ -31,7 +31,6 @@ typedef struct entry{
 	char * url_nohttp;
 	unsigned char seen:1;
 	unsigned char downloaded:1; //0: no 1: yes 2: red error
-	unsigned char highlighted:1;
 	struct entry * next;
 	struct entry * previous;
 	void * child_el;
@@ -71,8 +70,7 @@ typedef struct pos{
 	entry * optional_entry;
 } pos; 
 
-int winSZ[2] = {0,0};
-int winSZ_old[2] = {0,0};
+int winSZ[4] = {0,0,0,0};
 int display_mode = 1;
 
 entry * getNextEntry(global_e * requestGlobalEntry, int dir);

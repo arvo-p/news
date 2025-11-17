@@ -56,10 +56,23 @@ int main(int argc, char * argv[]){
 
 	SetConsoleOutputCP(CP_UTF8);
 	srand(time(NULL));  
-	pthread_create(&tWinResize, NULL, &winResize, NULL);
-	while(!winSZ[0]); //wait for winresize
+	
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+	winSZ[0] = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+	winSZ[1] = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+	winSZ[2] = winSZ[0];
+	winSZ[3] = winSZ[1];
 
+	if (winSZ[0] > displayThreshold)
+		display_mode = 0;
+	else
+		display_mode = 1;
+	
 	draw_update(true);
+
+	pthread_create(&tWinResize, NULL, &winResize_Loop, NULL);
+	while(!winSZ[0]); //wait for winresize
 
 	int input;
 	int scroll_ret = 0;

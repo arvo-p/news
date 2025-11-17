@@ -552,7 +552,7 @@ int feed::rssParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 
 	struct tm t;
 	getDatetime_all(pubdate_str, &t);
-	
+
 	while(item){
 		string link_str, title_str, pubdate_str;
 
@@ -592,19 +592,24 @@ int feed::atomParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 	rapidxml::xml_node<> *item, *title_node, *link_node, *pdate_node;
 	string pubdate_str;
 
-	pdate_node = node->first_node("updated");
-	if(pdate_node == NULL) pdate_node = node->first_node("published");
+	bool found_pdate_node = false;
 
+	pdate_node = node->first_node("updated");
 	item = node->first_node("entry");
 
-	pubdate_str = pdate_node->value();
-	if(feed::VerifyEntryDate(rssUrl.url, pubdate_str) == false){
-		cout << "\tFeed already up to date" << endl;
-		return 1;
-	}
-
 	struct tm t;
-	getDatetime_all(pubdate_str, &t);
+	
+	if(pdate_node){
+		found_pdate_node = true; /* 
+		inside while(item), get newest valid date if found_pdate_node == false
+		*/
+		pubdate_str = pdate_node->value();
+		if(feed::VerifyEntryDate(rssUrl.url, pubdate_str) == false){
+			cout << "\tFeed already up to date" << endl;
+			return 1;
+		}
+		getDatetime_all(pubdate_str, &t);
+	}
 
 	while(item){
 		string title_str, link_str, pubdate_str;
@@ -616,7 +621,8 @@ int feed::atomParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 		title_str = title_node->value();
 		link_str = link_node->first_attribute("href")->value();
 		pubdate_str = pdate_node->value();
-		
+	
+		cout << pubdate_str << endl;
 		bool blacklisted = mainBlacklist->check(title_str,link_str); 
 		bool isEntryNew = feed::VerifyEntryDate(rssUrl.url,pubdate_str);
 

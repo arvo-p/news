@@ -79,7 +79,6 @@ int tabs_updateDisplayMode(tab * target){
 				selected_tab->offset->entry = getNextEntry(selected_tab->old_entry, PREVIOUS);
 				selected_tab->sel = 1;
 		}
-		draw_update(true);
 	}
 	return 0;
 }
