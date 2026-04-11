@@ -1,3 +1,11 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "headers/nav.h"
+#include "headers/main.h"
+#include "headers/tabs.h"
+#include "headers/ui.h"
+
 int getEntriesNum(){
 	/*
 	 * for more types of lists
@@ -13,6 +21,7 @@ int getEntriesNum(){
 			return selected_tab->category->count;
 			break;
 	}
+	return 0;
 }
 
 int setGlobalEntry(global_e * target, entry * src){
@@ -31,7 +40,7 @@ int list_selector_move(int step){
 		return 2; // Hit higher limit
 	
 	int isWindowLarge = winSZ[0]>displayThreshold;
-	int isWindowSmall = !isWindowLarge;
+	// int isWindowSmall = !isWindowLarge; // unused
 	int diff = isWindowLarge?(selected_tab->sel)+13+step-winSZ[1]:(selected_tab->sel)+step+5-winSZ[1];
 
 	g_member * gNext = NULL;

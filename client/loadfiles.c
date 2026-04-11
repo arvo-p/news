@@ -1,25 +1,19 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
 #include <shlobj.h>
-
-/*
-How to handle configs? Arrays with name?
-Goal:
-	Easily add a config
-	Easily use 
-*/
-void get_Filepaths();
-int LoadEntries();
-int loadMainConfigFile();
-int loadInfoFromFile();
-int updateInfoFromFile(entry * target);
-int loadColorschemeFromFile(char * path);
-int LoadCategoryGroups();
+#include <direct.h>
+#include "headers/loadfiles.h"
+#include "headers/main.h"
+#include "headers/ui.h"
 
 char *pth_gConf, *pth_folder_colorscheme, *pth_Root, * pth_EntriesInfo, * pth_EntriesInfoMod, * pth_mainNews, * pth_Archive;
 
 char * pathAppend(char * pth, char * toAppend){
 	int len = strlen(pth);
 	int addDir = 0;
-	if(pth[len] != '\\') addDir=1;
+	if(pth[len-1] != '\\') addDir=1;
 
 	char * newstr = malloc(len+strlen(toAppend)+addDir+1);
 	
@@ -42,7 +36,7 @@ void get_Filepaths(){
 
 	SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, pth_Appdata);
 	pth_Root = pathAppend(pth_Appdata, "kNews");
-	mkdir(pth_Root);
+	_mkdir(pth_Root);
 
 	pth_EntriesInfo = pathAppend(pth_Root, file);
 	pth_EntriesInfoMod = pathAppend(pth_Root, file_m);
@@ -157,10 +151,12 @@ int LoadEntry(char * line, entry * new_entry, entry ** previous_entry, int * n_p
 	new_entry->url[szT-1] = 0;
 
 	// Works
-	if(strstr("https://", new_entry->url) != (char *)-1)
+	if(strstr(new_entry->url, "https://"))
 		new_entry->url_nohttp=new_entry->url+8;
-	else if(strstr("http://", new_entry->url) != (char *)-1)
+	else if(strstr(new_entry->url, "http://"))
 		new_entry->url_nohttp=new_entry->url+7;
+	else
+		new_entry->url_nohttp=new_entry->url;
 	
 	//Get urlbase and entry_parent
 	unsigned int pos = 0;
@@ -286,7 +282,7 @@ int LoadEntries(){
 	 */
 
 	entry * previous_entry = NULL;
-	entry_parent * previous_parent = NULL;
+	// entry_parent * previous_parent = NULL; // unused
 	int n_parent = 0;
 	chunk * entry_block = NULL;
 	
@@ -332,31 +328,27 @@ int updateInfoFromFile(entry * target){
 	/*
 	 * [ID];[SEEN];[DOWNLOADED];[BOOKMARKED]
 	 */
-	fprintf(fpw, "%x;%d;%d\n", target->id, target->seen, target->downloaded); 
+	fprintf(fpw, "%lx;%d;%d\n", target->id, (int)target->seen, (int)target->downloaded); 
 	if(!fpr) goto updateInfoFromFile_end;
 
 	char * args[3] = {NULL, NULL, NULL};
 	int args_c = 1;
 
-	int i = 0;
 	while(fgets(line, sizeof(line), fpr)){				
 		memset(args, 0, sizeof args);
 		args_c = 1;
 
 		args[0] = &line[0];
-		int j;
-		for(j=1;line[j];j++){
+		for(int j=1;line[j];j++){
 			if(line[j-1]==';'){ //31
 				args[args_c]=&line[j];
 				line[j-1] = 0;
 				args_c++;
 			}
-			if(args_c > sizeof(args)) break;
+			if(args_c > 3) break;
 		}
 		
 		if(target->id != strtoul(args[0], NULL, 16)) fprintf(fpw, "%s;%s;%s", args[0], args[1], args[2]);	
-
-		i++;
 	}
 
 	fclose(fpr);
@@ -386,14 +378,13 @@ int loadInfoFromFile(){
 		args_c = 1;
 
 		args[0] = &line[0];
-		int j;
-		for(j=1;line[j];j++){
+		for(int j=1;line[j];j++){
 			if(line[j-1]==';'){ //31
 				args[args_c]=&line[j];
 				line[j-1] = 0;
 				args_c++;
 			}
-			if(args_c > sizeof(args)) break;
+			if(args_c > 3) break;
 		}
 		entry_load = initial_entry;
 		while(entry_load){
@@ -412,4 +403,3 @@ int loadInfoFromFile(){
 
 	return 0;
 }
-

@@ -1,8 +1,16 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "headers/tabs.h"
+#include "headers/main.h"
+#include "headers/nav.h"
+#include "headers/ui.h"
+
 /*
 * K TABS
 */
-tab * tabs[16];
-tab * selected_tab;
+tab * tabs[16] = {0};
+tab * selected_tab = NULL;
 
 tab * tabs_newtab(char * title, entry * offset, int tab_mode){
 	tab * new_tab = malloc(sizeof(tab));
@@ -17,10 +25,11 @@ tab * tabs_newtab(char * title, entry * offset, int tab_mode){
 	new_tab->line_offset = 0;
 	
 	new_tab->tab_mode = tab_mode;
-	strcpy(new_tab->title, title);	
+	strncpy(new_tab->title, title, 127);
+	new_tab->title[127] = 0;
 
 	int i=0;
-	while(i < sizeof(tabs) && tabs[i] != 0) i++;
+	while(i < 16 && tabs[i] != 0) i++;
 	new_tab->tab_index = i;
 	tabs[i] = new_tab;
 
@@ -66,6 +75,9 @@ void tabs_close(tab * target){
 		if(target == selected_tab) selected_tab = tabs[tabIndex];	
 	}
 
+	free(target->working);
+	free(target->offset);
+	free(target->old_entry);
 	free(target);
 	return;
 }
@@ -105,9 +117,9 @@ void tabs_openGroup(cat_group * requestedGroup){
 	return;
 }
 
-void tabs_NewURLBASE(int tab){
+void tabs_NewURLBASE(int tab_type){
 	child_entry * cE_ptr; 
-	switch(tab){
+	switch(tab_type){
 		case TAB_URLBASE: 
 			cE_ptr = (selected_tab->old_entry->child);
 
@@ -134,20 +146,6 @@ void tabs_NewURLBASE(int tab){
 			 * */
 			break;
 		case TAB_TREE:
-			/*selected_tab->tab_mode = TAB_TREE;
-			
-			/*
-			 * h l | next and previous urlbase
-			 * j k | next and previous entry
-
-
-			selected_tab->line_offset = 0;
-			selected_tab->sel = 0;
-			selected_tab->selPrevious = 0;
-
-			draw_update();
-			*/
-
 			break;
 	}
 	return;

@@ -1,3 +1,6 @@
+#ifndef MAIN_H
+#define MAIN_H
+
 #define TAB_URLBASE 1
 #define TAB_TREE 2
 #define TAB_GROUP 3
@@ -19,7 +22,7 @@ typedef struct cat_group{
 } cat_group;
 
 typedef struct g_member{
-	struct entry * entry; //rss_entry or global_e?
+	struct entry * entry;
 	struct g_member * next;
 	struct g_member * previous;
 } g_member;
@@ -30,7 +33,7 @@ typedef struct entry{
 	char url[220];
 	char * url_nohttp;
 	unsigned char seen:1;
-	unsigned char downloaded:1; //0: no 1: yes 2: red error
+	unsigned char downloaded:1;
 	struct entry * next;
 	struct entry * previous;
 	void * child_el;
@@ -41,15 +44,11 @@ typedef struct child_entry{
 	struct entry_parent * parent;
 	struct entry * entry;
 	struct child_entry * next;
-	unsigned int position; //0: first, 1: not last, not first, 2: last
+	unsigned int position;
 	struct child_entry * previous;
 } child_entry;
 
 typedef struct global_e{
-	/*
-	 * rss_array
-	 * and entry_pos
-	 */
 	entry * entry;
 	child_entry * child;
 	entry_parent * parent;
@@ -73,11 +72,13 @@ typedef struct pos{
 entry * getNextEntry(global_e * requestGlobalEntry, int dir);
 int setGlobalEntry(global_e * target, entry * src);
 
-// ----------------------------------------------------------------
+// --- Global Variables (Extern) ---
 
-cat_group * initial_group;
-entry * initial_entry;
-entry_parent * initial_parent;
+extern cat_group * initial_group;
+extern entry * initial_entry;
+extern entry_parent * initial_parent;
 
-int winSZ[4] = {0,0,0,0};
-int display_mode = 1;
+extern int winSZ[4];
+extern int display_mode;
+
+#endif

@@ -1,3 +1,8 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "headers/colorscheme.h"
+
 colorscheme * colorScheme = NULL;
 config * uiConfig;
 
@@ -186,4 +191,6 @@ int initColorscheme(){
 	getConfigValue("ui.entries_nav.color", &colorScheme->entries_nav, 'i');
 	
 	getConfigValue("ui.urlprefix.char", &colorScheme->urlprefix_char, 'c');
+
+	return 0;
 }

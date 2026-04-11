@@ -1,3 +1,6 @@
+#ifndef CMD_H
+#define CMD_H
+
 int run_cmd(int helper);
 int cmd_autocomplete();
 void exit_command_mode();
@@ -11,4 +14,4 @@ extern int cHelper_len;
 extern int cHelper_max;
 extern char cError[115];
 
-
+#endif

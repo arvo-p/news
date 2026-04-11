@@ -1,3 +1,12 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include "headers/cmd.h"
+#include "headers/main.h"
+#include "headers/tabs.h"
+#include "headers/ui.h"
+
 int cmd_mode = 0;
 int cmd_count = 0;
 char cmd_buffer[100];

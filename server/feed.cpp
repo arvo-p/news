@@ -152,7 +152,7 @@ int feed::rssParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 		if(title_str.size()==0){
 			title_node = title_node->first_node();
 			if(title_node) title_str = title_node->value();
-			else title_str="EMPTY TITLE";
+			else title_str="NO TITLE";
 		}
 		
 		bool blacklisted = mainBlacklist->check(title_str,link_str); 

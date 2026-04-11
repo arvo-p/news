@@ -1,5 +1,16 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <windows.h>
+#include "headers/ui.h"
+#include "headers/main.h"
+#include "headers/tabs.h"
+#include "headers/colorscheme.h"
+#include "headers/nav.h"
+#include "headers/cmd.h"
+
 int displayThreshold = 150;
-char statusbar_notify[256];
+char statusbar_notify[256] = {0};
 int entries_sz=0;
 
 void draw_header();
@@ -23,7 +34,7 @@ void * winResize_Loop(void * arg){
 		if(winSZ[0] != winSZ[2] || winSZ[1] != winSZ[3]){
 		
 			if(winSZ[0]*m > displayThreshold*m){
-				display_mode != display_mode;
+				display_mode = !display_mode;
 				m = display_mode * (-2) + 1;
 				tabs_updateDisplayMode(selected_tab);
 			}
@@ -41,8 +52,8 @@ void * winResize_Loop(void * arg){
 
 void draw_header(){
 	char * appname = "KOALA NEWS";
-	int margin = (winSZ[0] - strlen(appname))/2-8;
-	int expanded = winSZ[0] > displayThreshold;
+	int margin = (winSZ[0] - (int)strlen(appname))/2-8;
+	// int expanded = winSZ[0] > displayThreshold; // unused
 	printf("\n");
 	for(int i=0;i<margin/8;i++) printf("\t");
 	for(int i=0;i<margin%8;i++) printf(" ");
@@ -56,11 +67,11 @@ int display_urltree(){
 	return 0;
 }
 
-int the_entry_print(entry * entry, int expanded_mode, int maxUrl, int title_maxlen, int i, short refresh){
+int the_entry_print(entry * entry_item, int expanded_mode, int maxUrl, int title_maxlen, int i, short refresh){
 	int shorted = 0;
-	char * url;
+	// char * url; // unused
 	
-	int len = strlen(entry->title);
+	int len = strlen(entry_item->title);
 	if(len>=title_maxlen){
 		len = title_maxlen-1;
 		shorted = 1;
@@ -71,27 +82,27 @@ int the_entry_print(entry * entry, int expanded_mode, int maxUrl, int title_maxl
 		else  printf("\e[%dG",7);
 	}
 
-	if(entry->seen) printf("\e[0;38;5;%dm",colorScheme->seen);
+	if(entry_item->seen) printf("\e[0;38;5;%dm",colorScheme->seen);
 	else printf("\e[38;5;%dm", colorScheme->entries);
 	
 	if(i == selected_tab->sel){
-		setGlobalEntry(selected_tab->old_entry, entry);
+		setGlobalEntry(selected_tab->old_entry, entry_item);
 		printf("\e[7m");
 	}
 
-	printf("%.*s",len,entry->title);
+	printf("%.*s",len,entry_item->title);
 	printf("\e[0K");
 	if(shorted) printf("...");
 		
-	if(entry->downloaded) printf(" 🌠");
+	if(entry_item->downloaded) printf(" 🌠");
 
 	if(expanded_mode){
 		printf("\e[7G"); // cursor pos 7 :: title
-		if(i == selected_tab->sel && shorted) printf("\e[38;5;%d;7m%s \e[27m", colorScheme->entries, entry->title); 
+		if(i == selected_tab->sel && shorted) printf("\e[38;5;%d;7m%s \e[27m", colorScheme->entries, entry_item->title); 
 		printf("\e[104G"); // cursor pos 104 :: url
 		printf("\e[27;38;5;%dm%c ",colorScheme->urlprefix,colorScheme->urlprefix_char);
 		if(i == selected_tab->sel) printf("\e[4m"); // underline open
-		printf("\e[38;5;%dm%.*s",colorScheme->url,maxUrl,entry->url);
+		printf("\e[38;5;%dm%.*s",colorScheme->url,maxUrl,entry_item->url);
 		if(i == selected_tab->sel) printf("\e[24m"); // underline close
 	}else{
 		if(i == selected_tab->sel){
@@ -99,10 +110,11 @@ int the_entry_print(entry * entry, int expanded_mode, int maxUrl, int title_maxl
 			newline();
 			printf("\e[2K");
 			printf(" | ");
-			printf("\e[38;5;%dm%.*s",colorScheme->url,maxUrl,entry->url);
+			printf("\e[38;5;%dm%.*s",colorScheme->url,maxUrl,entry_item->url);
 		}
 	}
 	newline();
+	return 0;
 }
 
 int display_entries(short refresh){
@@ -170,7 +182,7 @@ void draw_tabs(){
 
 void draw_statusbar(){
 	int expanded_mode = winSZ[0]>displayThreshold;
-	int sz = strlen(statusbar_notify);
+	int sz = (int)strlen(statusbar_notify);
 	int space_sz = winSZ[0]-sz;
 	char * style = "\e[48;5;233m\e[38;5;188m";
 	
@@ -215,7 +227,7 @@ void draw_command_line(){
 }
 
 void draw_update(short refresh){	
-	int expanded_mode = winSZ[0]>displayThreshold;
+	// int expanded_mode = winSZ[0]>displayThreshold; // unused
 	
 	if(cmd_mode){
 		draw_command_line();

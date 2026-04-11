@@ -1,3 +1,6 @@
+#ifndef COLORSCHEME_H
+#define COLORSCHEME_H
+
 typedef struct colorscheme{
 	int header;
 	int tab_title;
@@ -24,4 +27,6 @@ typedef struct config{
 extern colorscheme * colorScheme;
 extern config * uiConfig;
 
+int initColorscheme();
 
+#endif

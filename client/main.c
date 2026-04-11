@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <conio.h>
 #include <windows.h>
+#include <shellapi.h>
 #include <direct.h>
 #include <io.h>
 #include <time.h>
@@ -14,13 +15,14 @@
 #include "headers/cmd.h"
 #include "headers/tabs.h"
 #include "headers/colorscheme.h"
+#include "headers/loadfiles.h"
 
-#include "nav.c"
-#include "tabs.c"
-#include "colorscheme.c"
-#include "cmd.c"
-#include "ui.c"
-#include "loadfiles.c"
+cat_group * initial_group = NULL;
+entry * initial_entry = NULL;
+entry_parent * initial_parent = NULL;
+
+int winSZ[4] = {0,0,0,0};
+int display_mode = 1;
 
 int entry_view(entry * entry);
 
@@ -102,7 +104,7 @@ int main(int argc, char * argv[]){
 					run_cmd(1);
 					break;
 			}
-			if(!cmd_mode) printf("\e[?25l"); //invisible cursor
+			if(!cmd_mode) printf("\e[?25h"); //visible cursor
 			
 			draw_update(false);	
 			
@@ -155,24 +157,26 @@ int entry_view(entry * entry){
 	char * url = entry->url;
 	entry->seen = 1;
 
-	char * cmd = NULL;
-	cmd = malloc(strlen(url) + 56);
-	strcpy(cmd, "\"C:\\Program Files\\Midori Browser\\midori.exe\" ");
-	strcat(cmd, url);
-	
-	char psBuffer[128];
-	FILE *pPipe;
+	char cmd[1024];
+	DWORD creationFlags = DETACHED_PROCESS;
 
-	pPipe = _popen(cmd, "rt");
-	while(fgets(psBuffer, sizeof(psBuffer), pPipe)){
-		printf(psBuffer);
+	if (strstr(url, "youtube.com") || strstr(url, "youtu.be")) {
+		snprintf(cmd, sizeof(cmd), "cmd.exe /c mpv --force-window=immediate  --osd-level=1 \"%s\"", url);
+		creationFlags = CREATE_NEW_CONSOLE;
+	} else {
+		snprintf(cmd, sizeof(cmd), "cmd.exe /c start \"\" \"%s\"", url);
+		creationFlags = DETACHED_PROCESS;
 	}
-	sprintf(statusbar_notify, "Accessing %s", url); 
 
-	draw_statusbar();
+	STARTUPINFOA si = { sizeof(si) };
+	si.cb = sizeof(si);
+	PROCESS_INFORMATION pi;
+	if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE, creationFlags, NULL, NULL, &si, &pi)) {
+		CloseHandle(pi.hProcess);
+		CloseHandle(pi.hThread);
+	}
 
 	updateInfoFromFile(entry); //mark as seen
 
-	free(cmd);
 	return 0;
 }
