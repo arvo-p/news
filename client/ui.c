@@ -1,163 +1,16 @@
-#include "k_colorscheme.c"
-
-#define NEXT 0
-#define PREVIOUS 1
-
 int displayThreshold = 150;
-
-//int sel, selPrevious=0; //menu display pointer
-
-//int tab_mode = TAB_SIMPLE;
-
 char statusbar_notify[256];
-
 int entries_sz=0;
 
-int getEntriesNum();
-void NewURLBASE_tab(int tab);
 void draw_header();
-void print_img(int width, int height, char * img);
-g_member * getNextGroupEntry(g_member * gTarget, int dir);
+void draw_command_line();
+void draw_cError();
+void draw_statusbar();
+void draw_tabs();
 
 void newline();
 void EmptyScreen();
 void SetCursorLastLine();
-
-int setGlobalEntry(global_e * target, entry * src){
-	if(src==NULL) return 1;
-	target->entry = src;
-	target->child = src->child_el;
-	target->parent = target->child->parent;
-
-	return 0;
-}
-
-void openGroup_tab(cat_group * requestedGroup){
-	g_member * firstMember = requestedGroup->first_member;
-	
-	if(tabs_checkExist(requestedGroup->name)) return;
-	selected_tab = tabs_newtab(requestedGroup->name, firstMember->entry, TAB_GROUP);
-	selected_tab->offset->group_member = firstMember;
-	selected_tab->category = requestedGroup;
-	selected_tab->sel = 0;
-	selected_tab->selPrevious = 0;
-
-	draw_update(1);
-
-	return;
-}
-
-void NewURLBASE_tab(int tab){
-	child_entry * cE_ptr; 
-	switch(tab){
-		case TAB_URLBASE: 
-			cE_ptr = (selected_tab->old_entry->child);
-
-			// Prevent repeated tabs
-			if(tabs_checkExist(cE_ptr->parent->url)) break;
-
-			selected_tab = tabs_newtab(cE_ptr->parent->url, initial_entry, TAB_URLBASE);
-			global_e * global_entry = selected_tab->offset;
-			
-			global_entry->parent = cE_ptr->parent;
-			
-			selected_tab->sel = 0;
-			selected_tab->selPrevious = 0;	
-
-			cE_ptr = global_entry->parent->first_child;	
-			
-			global_entry->child = cE_ptr;
-			selected_tab->offset->entry = cE_ptr->entry;
-
-			/* new tab append to tab array and change the tab_focus variable (?)
-			 * new tab has both an id and a name(!)
-			 * save the previous {offset, sel and line_offset} so user can continue reading normally, VERY IMPORTANT. Maybe create position 
-			 * struct with all three elements
-			 * */
-			break;
-		case TAB_TREE:
-			/*selected_tab->tab_mode = TAB_TREE;
-			
-			/*
-			 * h l | next and previous urlbase
-			 * j k | next and previous entry
-
-
-			selected_tab->line_offset = 0;
-			selected_tab->sel = 0;
-			selected_tab->selPrevious = 0;
-
-			draw_update();
-			*/
-
-			break;
-	}
-	return;
-}
-
-int list_selector_move(int step){
-	int numEntries = getEntriesNum();
-
-	if((selected_tab->sel)+(selected_tab->line_offset)+step >= numEntries)
-		return 2; // Hit higher limit
-	
-	int isWindowLarge = winSZ[0]>displayThreshold;
-	int isWindowSmall = !isWindowLarge;
-	int diff = isWindowLarge?(selected_tab->sel)+13+step-winSZ[1]:(selected_tab->sel)+step+5-winSZ[1];
-
-	g_member * gNext = NULL;
-
-	if(diff>=0){
-		if(selected_tab->tab_mode == TAB_GROUP){
-			gNext = getNextGroupEntry(selected_tab->offset->group_member, NEXT);
-			setGlobalEntry(selected_tab->offset, gNext->entry);
-			selected_tab->offset->group_member = gNext;
-		}else{
-			setGlobalEntry(selected_tab->offset,getNextEntry(selected_tab->offset, NEXT));
-		}
-		
-		selected_tab->line_offset+=step;
-		selected_tab->sel = selected_tab->selPrevious;
-		return 0;
-	}
-
-	if(selected_tab->sel+step < 0){
-		if(selected_tab->line_offset){
-			if(selected_tab->tab_mode == TAB_GROUP){
-				gNext = getNextGroupEntry(selected_tab->offset->group_member, PREVIOUS);
-				setGlobalEntry(selected_tab->offset, gNext->entry);
-				selected_tab->offset->group_member = gNext;
-			}else{
-				setGlobalEntry(selected_tab->offset, getNextEntry(selected_tab->offset, PREVIOUS));
-			}
-			selected_tab->line_offset+=step;
-		}else{
-			return 1; //Hit lower limit
-		}
-		selected_tab->sel = 0;
-		return 0;
-	}
-
-	selected_tab->sel += step;
-	return 3;
-}
-
-int getEntriesNum(){
-	/*
-	 * for more types of lists
-	 */
-	switch(selected_tab->tab_mode){
-		case TAB_SIMPLE:
-			return entries_sz;
-			break;
-		case TAB_URLBASE:
-			return selected_tab->offset->parent->child_count;
-			break;
-		case TAB_GROUP:
-			return selected_tab->category->count;
-			break;
-	}
-}
 
 void * winResize_Loop(void * arg){
 	int m = display_mode * (-2) + 1;
@@ -184,33 +37,6 @@ void * winResize_Loop(void * arg){
 	}
 
 	return 0;
-}
-
-g_member * getNextGroupEntry(g_member * gTarget, int dir){
-	if(!gTarget){
-		return NULL;
-	}
-	if(!dir) return !gTarget->next?NULL:gTarget->next;
-	return !gTarget->previous?NULL:gTarget->previous;
-}
-
-entry * getNextEntry(global_e * requestGlobalEntry, int dir){
-	entry * rTarget;
-	child_entry * cTarget;
-	switch(selected_tab->tab_mode){
-		case TAB_SIMPLE:
-			rTarget = requestGlobalEntry->entry;
-			
-			if(!dir) return !rTarget->next?NULL:rTarget->next;
-			return rTarget->previous;
-		
-		case TAB_URLBASE:
-			cTarget = requestGlobalEntry->child; 
-
-			if(!dir) return !cTarget->next?NULL:cTarget->next->entry;
-			return !cTarget->previous?NULL:cTarget->previous->entry;
-	}
-	return NULL;
 }
 
 void draw_header(){
@@ -371,12 +197,6 @@ void EmptyScreen(){
 
 void newline(){
 	printf("\n");
-}
-
-void exit_command_mode(){
-	printf("\e[%d;0H", winSZ[1]);
-	printf("\e[2K");
-	cmd_mode = 0;
 }
 
 void draw_command_line(){

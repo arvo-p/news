@@ -70,32 +70,13 @@ typedef struct pos{
 	entry * optional_entry;
 } pos; 
 
-int winSZ[4] = {0,0,0,0};
-int display_mode = 1;
-
 entry * getNextEntry(global_e * requestGlobalEntry, int dir);
 int setGlobalEntry(global_e * target, entry * src);
 
-/*
- * TODO
- */
+// ----------------------------------------------------------------
 
 cat_group * initial_group;
 entry * initial_entry;
-
-int cmd_mode = 0;
-int cmd_count = 0;
-char cmd_buffer[100];
-
-char * cHelper;
-int cHelper_len=0;
-int cHelper_max=0;
-
-char cError[115];
-
-
-/*entry * old_entry;
-entry * offset;
-
-
-global_e * nowE = NULL;*/
+entry_parent * initial_parent;
+int winSZ[4] = {0,0,0,0};
+int display_mode = 1;

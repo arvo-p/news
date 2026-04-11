@@ -1,45 +1,8 @@
 /*
- * REQUIRED functions
- */
-
-void draw_update(short refresh);
-
-/*
 * K TABS
 */
-
-typedef struct tab{
-	char title[128];
-	global_e * working;
-	global_e * offset;
-	global_e * old_entry;
-	
-	/* === Experimental ===
-		chunk * loaded_chunk;
-		int index_chunk;
-	*/
-
-	cat_group * category;
-	int tab_mode;
-	int sel;
-	int selPrevious;
-	int line_offset;
-	int display_mode;
-	int tab_index;
-} tab;
-
-#define TAB_SIMPLE 0
-#define TAB_URLBASE 1
-#define TAB_TREE 2
-#define TAB_GROUP 3
-
 tab * tabs[16];
 tab * selected_tab;
-
-#define NEXT 0
-#define PREVIOUS 1
-
-int tabs_checkExist(char * title);
 
 tab * tabs_newtab(char * title, entry * offset, int tab_mode){
 	tab * new_tab = malloc(sizeof(tab));
@@ -50,7 +13,6 @@ tab * tabs_newtab(char * title, entry * offset, int tab_mode){
 	new_tab->old_entry = malloc(sizeof(global_e));
 
 	setGlobalEntry(new_tab->offset, offset);
-	//new_tab->offset = offset;
 
 	new_tab->line_offset = 0;
 	
@@ -83,8 +45,6 @@ int tabs_updateDisplayMode(tab * target){
 	return 0;
 }
 
-int getEntriesNum();
-
 void tabs_close(tab * target){
 	int tabIndex = target->tab_index;
 
@@ -112,11 +72,7 @@ void tabs_close(tab * target){
 
 int tabs_checkExist(char * title){
 	int sz = strlen(title);
-	
-	for(int i=0;tabs[i]!=0;i++){
-		if(strncmp(tabs[i]->title,title,sz)==0) return 1;
-	}
-	
+	for(int i=0;tabs[i]!=0;i++) if(strncmp(tabs[i]->title,title,sz)==0) return 1;
 	return 0;
 }
 
@@ -134,4 +90,65 @@ void tabs_switchNext(tab * target){
 	return;
 }
 
+void tabs_openGroup(cat_group * requestedGroup){
+	g_member * firstMember = requestedGroup->first_member;
+	
+	if(tabs_checkExist(requestedGroup->name)) return;
+	selected_tab = tabs_newtab(requestedGroup->name, firstMember->entry, TAB_GROUP);
+	selected_tab->offset->group_member = firstMember;
+	selected_tab->category = requestedGroup;
+	selected_tab->sel = 0;
+	selected_tab->selPrevious = 0;
 
+	draw_update(1);
+
+	return;
+}
+
+void tabs_NewURLBASE(int tab){
+	child_entry * cE_ptr; 
+	switch(tab){
+		case TAB_URLBASE: 
+			cE_ptr = (selected_tab->old_entry->child);
+
+			// Prevent repeated tabs
+			if(tabs_checkExist(cE_ptr->parent->url)) break;
+
+			selected_tab = tabs_newtab(cE_ptr->parent->url, initial_entry, TAB_URLBASE);
+			global_e * global_entry = selected_tab->offset;
+			
+			global_entry->parent = cE_ptr->parent;
+			
+			selected_tab->sel = 0;
+			selected_tab->selPrevious = 0;	
+
+			cE_ptr = global_entry->parent->first_child;	
+			
+			global_entry->child = cE_ptr;
+			selected_tab->offset->entry = cE_ptr->entry;
+
+			/* new tab append to tab array and change the tab_focus variable (?)
+			 * new tab has both an id and a name(!)
+			 * save the previous {offset, sel and line_offset} so user can continue reading normally, VERY IMPORTANT. Maybe create position 
+			 * struct with all three elements
+			 * */
+			break;
+		case TAB_TREE:
+			/*selected_tab->tab_mode = TAB_TREE;
+			
+			/*
+			 * h l | next and previous urlbase
+			 * j k | next and previous entry
+
+
+			selected_tab->line_offset = 0;
+			selected_tab->sel = 0;
+			selected_tab->selPrevious = 0;
+
+			draw_update();
+			*/
+
+			break;
+	}
+	return;
+}

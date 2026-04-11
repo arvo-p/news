@@ -1,1 +1,0 @@
-g++ -o koalaServer koalaServer.cpp -IC:\MinGW\include\ -lcurl

@@ -3,40 +3,26 @@
 #include <string.h>
 #include <pthread.h>
 #include <conio.h>
-#include <sys/time.h>
-
 #include <windows.h>
-
 #include <direct.h>
 #include <io.h>
 #include <time.h>
 
-#include "main.h"
-#include "k_tabs.c"
+#include "headers/main.h"
+#include "headers/nav.h"
+#include "headers/ui.h"
+#include "headers/cmd.h"
+#include "headers/tabs.h"
+#include "headers/colorscheme.h"
 
-#include "k_ui.c"
+#include "nav.c"
+#include "tabs.c"
+#include "colorscheme.c"
+#include "cmd.c"
+#include "ui.c"
+#include "loadfiles.c"
 
 int entry_view(entry * entry);
-int list_selector_move(int step);
-
-entry_parent * initial_parent;
-
-#include "k_loadfiles.c"
-#include "k_cmd.c"
-
-/* save offsets of each tab?
- * entry tab_simple_offset, etc
-*/
-
-/*
- * [category_name, start]
- * [actual_list;next_in_cat]
- * */
-
-/*
- * fix the resize problem
- *
- */
 
 int main(int argc, char * argv[]){
 	
@@ -51,7 +37,7 @@ int main(int argc, char * argv[]){
 	loadInfoFromFile();	
 	initColorscheme();
 	
-	tabs[0] = tabs_newtab("Main",initial_entry, TAB_SIMPLE);
+	tabs[0] = tabs_newtab("Main", initial_entry, TAB_SIMPLE);
 	selected_tab = tabs[0];
 
 	SetConsoleOutputCP(CP_UTF8);
@@ -64,10 +50,8 @@ int main(int argc, char * argv[]){
 	winSZ[2] = winSZ[0];
 	winSZ[3] = winSZ[1];
 
-	if (winSZ[0] > displayThreshold)
-		display_mode = 0;
-	else
-		display_mode = 1;
+	if (winSZ[0] > displayThreshold) display_mode = 0;
+	else display_mode = 1;
 	
 	draw_update(true);
 
@@ -141,7 +125,7 @@ int main(int argc, char * argv[]){
 				if(scroll_ret == 1) continue;
 				break;
 			case 'u':
-				NewURLBASE_tab(TAB_URLBASE);
+				tabs_NewURLBASE(TAB_URLBASE);
 				redraw = true;
 				break;
 			case 'n':
@@ -168,10 +152,6 @@ int main(int argc, char * argv[]){
 }
 
 int entry_view(entry * entry){
-	/*
-	 * should open in the background
-	*/
-
 	char * url = entry->url;
 	entry->seen = 1;
 
@@ -194,6 +174,5 @@ int entry_view(entry * entry){
 	updateInfoFromFile(entry); //mark as seen
 
 	free(cmd);
-
 	return 0;
 }

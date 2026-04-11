@@ -1,3 +1,12 @@
+int cmd_mode = 0;
+int cmd_count = 0;
+char cmd_buffer[100];
+
+char * cHelper;
+int cHelper_len=0;
+int cHelper_max=0;
+char cError[115];
+
 int run_cmd(int helper){
 	if(strlen(cmd_buffer) < 3) return 0;
 
@@ -36,7 +45,7 @@ int run_cmd(int helper){
 			int len = strlen(args[1]);
 			cat_group * findGroup = initial_group;
 			while(findGroup){
-				if(!helper && strcasecmp(findGroup->name, args[1]) == 0) openGroup_tab(findGroup);
+				if(!helper && strcasecmp(findGroup->name, args[1]) == 0) tabs_openGroup(findGroup);
 			
 				if(helper && len>0){
 					if(strncasecmp(findGroup->name, args[1], len) == 0){
@@ -80,4 +89,10 @@ int cmd_autocomplete(){
 	cmd_count += strlen(cHelper)-cHelper_len-1;
 	cHelper = NULL;
 	return 0;
+}
+
+void exit_command_mode(){
+	printf("\e[%d;0H", winSZ[1]);
+	printf("\e[2K");
+	cmd_mode = 0;
 }
