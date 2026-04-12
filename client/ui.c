@@ -118,9 +118,11 @@ int the_entry_print(entry * entry_item, int expanded_mode, int maxUrl, int title
 }
 
 int display_entries(short refresh){
-
 	global_e * huidig = selected_tab->working; 
-	setGlobalEntry(huidig, selected_tab->offset->entry);
+	if(setGlobalEntry(huidig, selected_tab->offset->entry)){
+		printf("\n    (Empty feed)\e[0K\n");
+		return 0;
+	}
 	huidig->group_member = selected_tab->offset->group_member;
 	
 	int expanded_mode = winSZ[0]>displayThreshold;

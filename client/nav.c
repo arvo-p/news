@@ -25,10 +25,16 @@ int getEntriesNum(){
 }
 
 int setGlobalEntry(global_e * target, entry * src){
-	if(src==NULL) return 1;
+	if(src==NULL){
+		target->entry = NULL;
+		target->child = NULL;
+		target->parent = NULL;
+		target->group_member = NULL;
+		return 1;
+	}
 	target->entry = src;
 	target->child = src->child_el;
-	target->parent = target->child->parent;
+	target->parent = target->child?target->child->parent:NULL;
 
 	return 0;
 }

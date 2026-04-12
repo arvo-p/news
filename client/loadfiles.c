@@ -9,6 +9,7 @@
 #include "headers/ui.h"
 
 char *pth_gConf, *pth_folder_colorscheme, *pth_Root, * pth_EntriesInfo, * pth_EntriesInfoMod, * pth_mainNews, * pth_Archive;
+short homepageExcludedGroups[32];
 
 char * pathAppend(char * pth, char * toAppend){
 	int len = strlen(pth);
@@ -58,6 +59,23 @@ int LoadCategoryGroups(){
 	fp = fopen(pth_gConf, "rb");
 	if(!fp) return 1;
 	while (fgets(line, sizeof(line), fp)){			
+		if(strncmp(line, "homepage-exclude", 16) == 0){
+			int step = 0;
+			short last_offset = 17;
+			int sz = strlen(line);
+			for(int i=17;i<sz;i++){
+				if(line[i] == ',' || line[i] == '\n' || i + 1 == sz){
+					if(i+1 != sz) line[i] = 0;
+					for(int j=0;j<32;j++){
+						if(homepageExcludedGroups[j] == 0){
+							homepageExcludedGroups[j] = strtoul(line+last_offset, NULL, 10);
+							break;
+						}
+					}
+					last_offset = i+1;
+				}
+			}
+		}
 		if(strncmp(line, "register-group", 14) == 0){
 			int sz = strlen(line);
 			int group_id = -1;
@@ -139,11 +157,6 @@ int LoadEntry(char * line, entry * new_entry, entry ** previous_entry, int * n_p
 	new_entry->next = NULL;
 	new_entry->previous = NULL;
 
-	if(new_entry&&(*previous_entry)){
-		new_entry->next = *previous_entry;
-		(*previous_entry)->previous = new_entry;
-	}
-
 	// Retrieve url
 	int szT = strlen(args[2])+1;
 	if(szT>210) szT = 210;
@@ -220,21 +233,27 @@ int LoadEntry(char * line, entry * new_entry, entry ** previous_entry, int * n_p
 	// Retrieve groups
 	
 	int groups[5];
-	char n[5];
+	char n[12];
 	memset(groups, 0, sizeof(groups));
 	int g_count = 0, n_count = 0;
 
 	int sz = strlen(args[3]);
 
 	for(int k=0;k<sz;k++){
-		if(isdigit(*(args[3]+k))) n[n_count++] = *(args[3]+k);
+		if(isdigit(*(args[3]+k)) && n_count < sizeof(n)-1) n[n_count++] = *(args[3]+k);
 
-		if(*(args[3]+k) == ' ' || n_count >= sizeof(n)){
+		if(*(args[3]+k) == ' ' || n_count >= sizeof(n)-1){
+			if(n_count > 0 && g_count < 5){
+				n[n_count] = 0;
+				groups[g_count++] = atoi(n);
+			}
 			n_count = 0;
-			groups[g_count++] = atoi(n);
 		}
 	}
-	groups[g_count++] = atoi(n);
+	if(n_count > 0 && g_count < 5){
+		n[n_count] = 0;
+		groups[g_count++] = atoi(n);
+	}
 
 	g_member * newGroupMember = NULL, * findGroupMember = NULL;
 
@@ -243,7 +262,7 @@ int LoadEntry(char * line, entry * new_entry, entry ** previous_entry, int * n_p
 
 	cat_group * findGroup = initial_group;
 	while(findGroup){
-		for(int kj=0;groups[kj] && kj<sizeof(groups);kj++){ //matched group
+		for(int kj=0;kj<g_count;kj++){ //matched group
 			if(findGroup->id != groups[kj]) continue;
 			newGroupMember = malloc(sizeof(struct g_member));
 			newGroupMember->entry = new_entry;
@@ -270,8 +289,26 @@ int LoadEntry(char * line, entry * new_entry, entry ** previous_entry, int * n_p
 	new_entry->previous=NULL;
 	new_entry->id = strtoul(args[0], NULL, 16);
 
-	*previous_entry = new_entry;
+	short doIncludeEntryInMainFeed = 1;
+	for(int i=0;i<g_count;i++){
+		for(int j=0;j<32;j++){
+			if(homepageExcludedGroups[j] == 0) continue;
+			if(groups[i] == homepageExcludedGroups[j]){
+				doIncludeEntryInMainFeed = 0;
+				break;
+			}
+		}
+		if(!doIncludeEntryInMainFeed) break;
+	}
 	
+	if(doIncludeEntryInMainFeed){
+		if(new_entry&&(*previous_entry)){
+			new_entry->next = *previous_entry;
+			(*previous_entry)->previous = new_entry;
+		}
+		*previous_entry = new_entry;
+		entries_sz++;
+	}	
 	return 0;
 }
 
@@ -288,6 +325,8 @@ int LoadEntries(){
 	
 	FILE * fp;
 	char line[400];
+
+	entries_sz = 0;
 
 	fp = fopen(pth_mainNews, "rb");
 	if(!fp) return 1;
@@ -308,10 +347,8 @@ int LoadEntries(){
 		LoadEntry(line, &entry_block->entry[31-(i%32)], &previous_entry, &n_parent);
 		i++;
 	}
-	entry_block->start_index = 31-((i-1)%32);
+	if(entry_block) entry_block->start_index = 31-((i-1)%32);
 	initial_entry = previous_entry;	
-
-	entries_sz=i;
 
 	fclose(fp);
 	return 0;
