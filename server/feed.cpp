@@ -111,7 +111,10 @@ int feed::parse(string &buffer, rss_url &rssUrl){
 	node = doc.first_node("rss");
 	if(node == NULL){
 		node = doc.first_node("feed");
-		ret = feed::atomParse(rssUrl, node);
+		if(node == NULL){
+			node = doc.first_node("rdf:RDF");
+			ret = feed::rdfParse(rssUrl, node);
+		}else ret = feed::atomParse(rssUrl, node);
 	}else ret = feed::rssParse(rssUrl, node);
 
 	delete[] parsed;
@@ -168,6 +171,44 @@ int feed::rssParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 	return 0;
 }
 
+int feed::rdfParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
+	struct tm t;
+	cout << "\tParsing RDF" << endl;
+	rapidxml::xml_node<> *item, *title_node, *link_node, *pdate_node;
+	string pubdate_str;
+
+	item = node->first_node("item");
+
+	while(item){
+		string title_str, link_str, pubdate_str;
+		title_node = item->first_node("title");
+		link_node = item->first_node("link");
+
+		pdate_node = item->first_node("dc:date");
+
+		title_str = title_node->value();
+		link_str = link_node->value();
+		pubdate_str = pdate_node->value();
+	
+		bool blacklisted = mainBlacklist->check(title_str,link_str); 
+		bool isEntryNew = feed::VerifyEntryDate(rssUrl.url,pubdate_str);
+
+		if(!blacklisted && isEntryNew){
+			mainRss->record_entry(title_str, link_str, rssUrl);
+			mainRss->n_EntriesParsed++;
+		}
+		item = item->next_sibling("item");
+	}
+
+	if(pdate_node){
+		pubdate_str = pdate_node->value();
+		getDatetime_all(pubdate_str, &t);
+		feed::Update_UpdateRecord(rssUrl.url, &t);
+	}
+
+	return 0;
+}
+
 int feed::atomParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 	cout << "\tParsing ATOM" << endl;
 	rapidxml::xml_node<> *item, *title_node, *link_node, *pdate_node;
@@ -187,9 +228,6 @@ int feed::atomParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 			cout << "\tFeed already up to date" << endl;
 			return 1;
 		}
-		getDatetime_all(pubdate_str, &t);
-        char buf[100];
-        strftime(buf, sizeof(buf), "%y-%m-%d %h:%m:%s", &t);
 	}
 
 	while(item){

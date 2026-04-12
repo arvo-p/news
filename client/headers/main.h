@@ -57,7 +57,7 @@ typedef struct global_e{
 } global_e;
 
 typedef struct chunk{
-	entry entry[32];
+	entry entry[96];
 	int start_index;
 	struct chunk * next;
 	struct chunk * previous;

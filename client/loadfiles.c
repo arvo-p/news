@@ -18,10 +18,7 @@ char * pathAppend(char * pth, char * toAppend){
 
 	char * newstr = malloc(len+strlen(toAppend)+addDir+1);
 	
-	strcpy(newstr, pth);
-	if(addDir) strcat(newstr, "\\");
-	strcat(newstr, toAppend);
-
+	snprintf(newstr, len + strlen(toAppend) + 2, "%s%s%s", pth, addDir ? "\\" : "", toAppend);
 	return newstr;
 }
 
@@ -314,12 +311,11 @@ int LoadEntry(char * line, entry * new_entry, entry ** previous_entry, int * n_p
 
 int LoadEntries(){
 	/*
-	 * Entries are loaded in the memory upside down.
+	 * Entries are loaded upside down in memory.
 	 * Because the server appends new entries at the end of the file.
 	 */
 
 	entry * previous_entry = NULL;
-	// entry_parent * previous_parent = NULL; // unused
 	int n_parent = 0;
 	chunk * entry_block = NULL;
 	
@@ -333,7 +329,7 @@ int LoadEntries(){
 
 	int i=0;
 	while (fgets(line, sizeof(line), fp)){				
-		if(i % 32 == 0){
+		if(i % 96 == 0){
 			chunk * new_entry_block = malloc(sizeof(struct chunk));
 			memset(new_entry_block, 0, sizeof(struct chunk));
 			if(entry_block != NULL){
@@ -344,10 +340,10 @@ int LoadEntries(){
 			entry_block->start_index = 0;
 		}
 
-		LoadEntry(line, &entry_block->entry[31-(i%32)], &previous_entry, &n_parent);
+		LoadEntry(line, &entry_block->entry[95-(i%96)], &previous_entry, &n_parent);
 		i++;
 	}
-	if(entry_block) entry_block->start_index = 31-((i-1)%32);
+	if(entry_block) entry_block->start_index = 95-((i-1)%96);
 	initial_entry = previous_entry;	
 
 	fclose(fp);

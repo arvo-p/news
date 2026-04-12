@@ -160,7 +160,7 @@ int entry_view(entry * entry){
 	char cmd[1024];
 	DWORD creationFlags = DETACHED_PROCESS;
 
-	if(strstr(url, "youtube.com") || strstr(url, "youtu.be")){
+	if(strstr(url, "youtube.com") || strstr(url, "youtu.be") || strstr(url+strlen(url)-4,".mp4")){
 		snprintf(cmd, sizeof(cmd), "cmd.exe /c mpv --force-window=immediate  --osd-level=1 \"%s\"", url);
 		creationFlags = CREATE_NEW_CONSOLE;
 	}else{
