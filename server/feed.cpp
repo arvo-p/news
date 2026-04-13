@@ -172,13 +172,14 @@ int feed::rssParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 }
 
 int feed::rdfParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
-	struct tm t;
+	struct tm t, tmNew;
 	cout << "\tParsing RDF" << endl;
 	rapidxml::xml_node<> *item, *title_node, *link_node, *pdate_node;
 	string pubdate_str;
 
 	item = node->first_node("item");
 
+	int i=0;
 	while(item){
 		string title_str, link_str, pubdate_str;
 		title_node = item->first_node("title");
@@ -190,6 +191,11 @@ int feed::rdfParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 		link_str = link_node->value();
 		pubdate_str = pdate_node->value();
 	
+		getDatetime_all(pubdate_str, &t);
+		if(i++ == 0){
+			tmNew = t;
+		}else if(CompareDates(&t, &tmNew) == 1) tmNew = t;
+
 		bool blacklisted = mainBlacklist->check(title_str,link_str); 
 		bool isEntryNew = feed::VerifyEntryDate(rssUrl.url,pubdate_str);
 
@@ -200,11 +206,7 @@ int feed::rdfParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 		item = item->next_sibling("item");
 	}
 
-	if(pdate_node){
-		pubdate_str = pdate_node->value();
-		getDatetime_all(pubdate_str, &t);
-		feed::Update_UpdateRecord(rssUrl.url, &t);
-	}
+	feed::Update_UpdateRecord(rssUrl.url, &tmNew);
 
 	return 0;
 }
