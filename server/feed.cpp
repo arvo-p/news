@@ -5,6 +5,7 @@
 #include <iostream>
 #include <curl/curl.h>
 #include <cstring>
+#include <ctime>
 
 using namespace std;
 
@@ -97,13 +98,21 @@ bool feed::VerifyEntryDate(string &url_src, string &date){
 }
 
 int feed::parse(string &buffer, rss_url &rssUrl){
+	cout << "Debug : NEW PARSE" << endl;
 	int ret = 0;
 	char * parsed = new char[buffer.length()+1];
 	strcpy(parsed, buffer.c_str());
 
 	rapidxml::xml_document<> doc;
 	rapidxml::xml_node<> *node;
-	doc.parse<0>(parsed);
+	
+	try{
+   		doc.parse<0>(parsed);
+	}catch(const exception& e){
+     	cout << "Failure to fetch :( " << rssUrl.url << endl;
+		cout << "Trying next" << endl;
+		return 1;
+	}
 
 	cout << "* [" << rssUrl.url << "] " << endl;
 	cout << "\tFetching." << endl;
@@ -127,9 +136,9 @@ int feed::rssParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 	string pubdate_str;
 
 	node = node->first_node("channel");
+	pdate_node = node->first_node("published");
 	pdate_node = node->first_node("lastBuildDate");
 	if(pdate_node == NULL) pdate_node = node->first_node("pubDate");
-	if(pdate_node == NULL) pdate_node = node->first_node("published");
 	
 	item = node->first_node("item");
 	pubdate_str = pdate_node->value();
@@ -213,38 +222,48 @@ int feed::rdfParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 
 int feed::atomParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 	cout << "\tParsing ATOM" << endl;
-	rapidxml::xml_node<> *item, *title_node, *link_node, *pdate_node;
+	rapidxml::xml_node<> *item, *title_node, *link_node, *pdate_node, *headerdate_node;
 	string pubdate_str;
 
-	pdate_node = node->first_node("updated");
-	if(!pdate_node) pdate_node = node->first_node("published");
-	if(!pdate_node) pdate_node = node->first_node("lastBuildDate");
-	if(!pdate_node) pdate_node = node->first_node("pubDate");
+	headerdate_node = node->first_node("updated");
+	if(!headerdate_node) headerdate_node = node->first_node("lastBuildDate");
 
-	item = node->first_node("entry");
+	struct tm headerDatetime;
+	bool headerDefined = false;
 
-	struct tm t;
-	if(pdate_node){
-		pubdate_str = pdate_node->value();
+	if(headerdate_node){
+		headerDefined = true;
+		pubdate_str = headerdate_node->value();
+	    getDatetime_all(pubdate_str, &headerDatetime); 
 		if(feed::VerifyEntryDate(rssUrl.url, pubdate_str) == false){
 			cout << "\tFeed already up to date" << endl;
 			return 1;
 		}
 	}
 
+	item = node->first_node("entry");
 	while(item){
 		string title_str, link_str, pubdate_str;
 		title_node = item->first_node("title");
 		link_node = item->first_node("link");
 
-		pdate_node = node->first_node("updated");
-		if(!pdate_node) pdate_node = node->first_node("published");
-		if(!pdate_node) pdate_node = node->first_node("lastBuildDate");
-		if(!pdate_node) pdate_node = node->first_node("pubDate");
+		pdate_node = item->first_node("updated");
+		if(!pdate_node) pdate_node = item->first_node("published");
 
 		title_str = title_node->value();
 		link_str = link_node->first_attribute("href")->value();
 		pubdate_str = pdate_node->value();
+
+		struct tm itemDatetime;
+		getDatetime_all(pubdate_str,&itemDatetime);
+		
+		/* I noticed the YouTube header only has the <published> tag, which corresponds to the date of channel creation and
+		 * does not actually tell us the last update time. So I need to get from the item by doing a comparison.*/
+
+		if(!headerDefined || CompareDates(&headerDatetime, &itemDatetime) == 2){
+			headerDatetime = itemDatetime;    
+			headerDefined = true;
+		}
 	
 		bool blacklisted = mainBlacklist->check(title_str,link_str); 
 		bool isEntryNew = feed::VerifyEntryDate(rssUrl.url,pubdate_str);
@@ -254,10 +273,13 @@ int feed::atomParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 			mainRss->n_EntriesParsed++;
 		}
 		item = item->next_sibling("entry");
+		debug_printdate(&itemDatetime);
 	}
-	feed::Update_UpdateRecord(rssUrl.url, &t);
+	feed::Update_UpdateRecord(rssUrl.url, &headerDatetime);
+	//debug_printdate(&headerDatetime);
 	return 0;
 }
+
 
 int feed::fetch(rss_url &rssUrl){
 	CURL * curl;

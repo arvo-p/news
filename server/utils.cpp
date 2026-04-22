@@ -118,6 +118,12 @@ bool getDatetime(string &date, string type, struct tm * t){
 	return false;
 }
 
+void debug_printdate(struct tm * t){
+	char buffer[64];
+	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d", t);
+	std::cout << "buffer gives " << buffer << std::endl; 
+}
+
 int getDatetime_all(string &date, struct tm * t){
 	if(!getDatetime(date, "RFC_1123", t)){
 		if(!getDatetime(date, "ISO_INSTANT", t)){

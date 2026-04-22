@@ -2,6 +2,7 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <sstream>
 
 #include "globals.hpp"
 #include "files_path.hpp"
@@ -19,12 +20,36 @@ feed * mainRss;
 blacklist * mainBlacklist;
 groups * mainGroups;
 
-int main(){
+void testLocalFile(string filename){
+	cout << "Testing with local file: " << filename << endl;
+	ifstream t(filename);
+	if(!t.is_open()){
+		cout << "Could not open " << filename << endl;
+		return;
+	}
+	stringstream buffer;
+	buffer << t.rdbuf();
+	string content = buffer.str();
+	
+	rss_url testFeed;
+	testFeed.url = "local://" + filename;
+	mainRss->parse(content, testFeed);
+}
+
+int main(int argc, char** argv){
 	path = new files_path();
 	mainBlacklist = new blacklist();
 	mainGroups = new groups();
 	mainRss = new feed();
 	
+	if(argc > 1 && string(argv[1]) == "test"){
+		string fileToTest = "example.atom";
+		if(argc > 2) fileToTest = argv[2];
+		testLocalFile(fileToTest);
+		mainRss->close();
+		return 0;
+	}
+
 	ifstream f (path->feedlist);
 	if(!f.is_open()){
 		cout << path->feedlist << " was not found." << endl;
