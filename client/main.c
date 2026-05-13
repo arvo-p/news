@@ -35,7 +35,7 @@ int main(int argc, char * argv[]){
 
 	get_Filepaths();
 	LoadCategoryGroups();
-	LoadEntries();
+	LoadEntries(NO_OFFSET);
 	loadInfoFromFile();	
 	initColorscheme();
 	
@@ -112,6 +112,14 @@ int main(int argc, char * argv[]){
 		}
 
 		switch(input){
+			case 'R':
+				LoadEntries(OFFSET_LAST_ENTRY);
+				if(selected_tab->tab_mode == TAB_SIMPLE) setGlobalEntry(selected_tab->offset, initial_entry);
+				else if(selected_tab->tab_mode == TAB_GROUP) {
+					selected_tab->offset->group_member = selected_tab->category->first_member;
+					setGlobalEntry(selected_tab->offset, selected_tab->category->first_member->entry);
+				}
+				break;
 			case 'T': 
 				//save local copy
 				break;

@@ -176,7 +176,6 @@ int LoadEntry(char * line, entry * new_entry, entry ** previous_entry, int * n_p
 	entry_parent * eP_ptr = initial_parent;
 	
 	int createNewParent = 1;
-	
 
 	for(int i=0;eP_ptr;i++){
 		if(strncmp(eP_ptr->url, new_entry->url_nohttp,pos)==0){
@@ -309,26 +308,70 @@ int LoadEntry(char * line, entry * new_entry, entry ** previous_entry, int * n_p
 	return 0;
 }
 
-int LoadEntries(){
-	/*
-	 * Entries are loaded upside down in memory.
-	 * Because the server appends new entries at the end of the file.
-	 */
+int GetLineParameter(short positionParameter, char * src, short sz, char * dest){
+	short countPosition = 0;
+	int offset=-1;
+	int szSub=0;
+	int i=0;
 
-	entry * previous_entry = NULL;
-	int n_parent = 0;
-	chunk * entry_block = NULL;
+	for(i=0;i<sz;i++){
+		if(offset != -1){
+			szSub++;
+			if(src[i] == 31) break;
+		}
+		if(szSub == 0){
+			if(src[i] == 31) countPosition++;
+ 			if(countPosition == positionParameter)
+				offset = i;
+		}
+	}
 	
+	if(offset == -1 || szSub == 0) return 1;
+	strncpy(dest, src+offset, szSub);
+	dest[szSub] = 0;
+
+	return 0;
+}
+
+int LoadEntries(enum LoadEntriesMode mode){
 	FILE * fp;
 	char line[400];
 
-	entries_sz = 0;
+	/*
+	 * Entries are loaded upside down in memory.
+	 * Because the server appends new entries at the end of the file.
+	 * --------------------------------------------------------------
+	 * 	NO_OFFSET -> Load all entries.
+	 *	OFFSET_LAST_ENTRY -> Load entries after an offset ID.
+	 */
 
+	int isOffsetConditionSatisfied = 0;
+	static char * entryLastLoadedID = NULL;
+	static char * offsetID = NULL;
+	if(entryLastLoadedID == NULL) entryLastLoadedID = malloc(8);
+	if(offsetID == NULL) offsetID = malloc(8);
+	if(mode == OFFSET_LAST_ENTRY){
+		strcpy(offsetID, entryLastLoadedID);
+	}
+
+	entry * previous_entry = (mode == OFFSET_LAST_ENTRY) ? initial_entry : NULL;
+	static int n_parent = 0;
+	static chunk * entry_block = NULL;
+	
 	fp = fopen(pth_mainNews, "rb");
 	if(!fp) return 1;
 
 	int i=0;
 	while (fgets(line, sizeof(line), fp)){				
+		GetLineParameter(0, line, strlen(line), entryLastLoadedID);
+
+		if(mode == OFFSET_LAST_ENTRY){
+			if(strcmp(offsetID, entryLastLoadedID)==0){
+				isOffsetConditionSatisfied = 1;
+				continue;
+			} else if(!isOffsetConditionSatisfied) continue;
+		}
+
 		if(i % 96 == 0){
 			chunk * new_entry_block = malloc(sizeof(struct chunk));
 			memset(new_entry_block, 0, sizeof(struct chunk));
@@ -343,10 +386,12 @@ int LoadEntries(){
 		LoadEntry(line, &entry_block->entry[95-(i%96)], &previous_entry, &n_parent);
 		i++;
 	}
-	if(entry_block) entry_block->start_index = 95-((i-1)%96);
+
+	if(i > 0 && entry_block) entry_block->start_index = 95-((i-1)%96);
 	initial_entry = previous_entry;	
 
 	fclose(fp);
+
 	return 0;
 }
 

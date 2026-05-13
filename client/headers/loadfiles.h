@@ -5,7 +5,12 @@
 
 void get_Filepaths();
 int LoadCategoryGroups();
-int LoadEntries();
+
+enum LoadEntriesMode{
+  	NO_OFFSET, OFFSET_LAST_ENTRY
+};
+
+int LoadEntries(enum LoadEntriesMode mode);
 int loadInfoFromFile();
 int updateInfoFromFile(entry * target);
 
