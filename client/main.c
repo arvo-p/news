@@ -16,6 +16,8 @@
 #include "headers/tabs.h"
 #include "headers/colorscheme.h"
 #include "headers/loadfiles.h"
+                                 
+PublicLoad * Load = NULL;
 
 cat_group * initial_group = NULL;
 entry * initial_entry = NULL;
@@ -27,16 +29,13 @@ int display_mode = 1;
 int entry_view(entry * entry);
 
 int main(int argc, char * argv[]){
-	
 	pthread_t tWinResize;
 	
 	int highlighted_entry_id = -1; 
 	if(argc == 2) highlighted_entry_id = atoi(argv[1]);
 
-	get_Filepaths();
-	LoadCategoryGroups();
-	LoadEntries(NO_OFFSET);
-	loadInfoFromFile();	
+	Load = malloc(sizeof(PublicLoad));
+	if(LOAD_INIT(Load) != 0) exit(0);
 	initColorscheme();
 	
 	tabs[0] = tabs_newtab("Main", initial_entry, TAB_SIMPLE);
@@ -112,13 +111,8 @@ int main(int argc, char * argv[]){
 		}
 
 		switch(input){
-			case 'R':
-				LoadEntries(OFFSET_LAST_ENTRY);
-				if(selected_tab->tab_mode == TAB_SIMPLE) setGlobalEntry(selected_tab->offset, initial_entry);
-				else if(selected_tab->tab_mode == TAB_GROUP) {
-					selected_tab->offset->group_member = selected_tab->category->first_member;
-					setGlobalEntry(selected_tab->offset, selected_tab->category->first_member->entry);
-				}
+			case 'r':
+				Load->ReloadEntries();
 				break;
 			case 'T': 
 				//save local copy
@@ -142,7 +136,7 @@ int main(int argc, char * argv[]){
 				tabs_switchNext(selected_tab);
 				redraw = true;
 				break;
-			case 'c':
+			case 'd':
 				tabs_close(selected_tab);
 				redraw = true;
 				break;
@@ -185,7 +179,7 @@ int entry_view(entry * entry){
 		CloseHandle(pi.hThread);
 	}
 
-	updateInfoFromFile(entry); //mark as seen
+	Load->UpdateInteractionInformation(entry); //mark as seen
 
 	return 0;
 }

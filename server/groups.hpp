@@ -11,11 +11,11 @@ struct custom_group{
 
 class groups{
 	public:
-		bool loaded = false;
+		bool isLoaded = false;
 
-		std::vector<custom_group> custom_groups; 
+		std::vector<custom_group> groupList; 
 		
-		int register_group(std::vector<std::string> &args, int lineNum);
+		int RegisterGroup(std::vector<std::string> &args, int lineNum);
 
 		groups();
 };

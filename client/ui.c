@@ -114,7 +114,7 @@ int the_entry_print(entry * entry_item, int expanded_mode, int maxUrl, int title
 	}
 
 	if(expanded_mode){
-		if(refresh) ui_printf("\e[38;5;%dm    \u2502 ", colorScheme->ui_walls);
+		if(refresh) ui_printf("\e[38;5;%dm\e[%dG\u2502 ", colorScheme->ui_walls, 5);
 		else  ui_printf("\e[%dG",7);
 	}
 
@@ -184,8 +184,8 @@ int display_entries(short refresh){
 
 	if(expanded_mode){
 		ui_printf("\e[0;2;38;5;%dm", colorScheme->ui_walls);
-		ui_printf("    \u2502\e[0K");
-		ui_printf("\n    \u2514\u2500\e[0K");
+		ui_printf("\e[%dG\u2502\e[0K",5);
+		ui_printf("\n\e[%dG\u2514\u2500\e[0K",5);
 	}else{
 		int margin = winSZ[0]-10;
 		ui_printf("\e[%dG\e[2K",margin);

@@ -5,11 +5,49 @@
 #include <shlobj.h>
 #include <direct.h>
 #include "headers/loadfiles.h"
+#include "headers/tabs.h"
 #include "headers/main.h"
 #include "headers/ui.h"
 
 char *pth_gConf, *pth_folder_colorscheme, *pth_Root, * pth_EntriesInfo, * pth_EntriesInfoMod, * pth_mainNews, * pth_Archive;
+
+int LOAD_GetEntries(enum LoadEntriesMode mode);
+int LOAD_GetInteractionInformation();
+int LOAD_UpdateInteractionInformation(entry * target);
+int LOAD_GetFilepaths();
+int LOAD_GetCategoryGroups();
+int LOAD_ReloadEntries();
+
 short homepageExcludedGroups[32];
+
+int LOAD_INIT(struct PublicLoad * this){
+	int error = 0;
+
+	error = LOAD_GetFilepaths();
+	error += LOAD_GetCategoryGroups() << 1;
+	error += LOAD_GetEntries(NO_OFFSET) << 2;
+	error += LOAD_GetInteractionInformation() << 3;	
+
+	if(error != 0){
+		printf("LOAD_INIT ERROR %d", error);
+     	return 1;
+	}
+
+	this->ReloadEntries = &LOAD_ReloadEntries;
+	this->UpdateInteractionInformation = &LOAD_UpdateInteractionInformation;
+
+	return 0;
+}
+
+int LOAD_ReloadEntries(){
+	LOAD_GetEntries(OFFSET_LAST_ENTRY);
+	if(selected_tab->tab_mode == TAB_SIMPLE) setGlobalEntry(selected_tab->offset, initial_entry);
+	else if(selected_tab->tab_mode == TAB_GROUP) {
+		selected_tab->offset->group_member = selected_tab->category->first_member;
+		setGlobalEntry(selected_tab->offset, selected_tab->category->first_member->entry);
+	}
+	return 0;
+}
 
 char * pathAppend(char * pth, char * toAppend){
 	int len = strlen(pth);
@@ -22,7 +60,32 @@ char * pathAppend(char * pth, char * toAppend){
 	return newstr;
 }
 
-void get_Filepaths(){
+int GetLineParameter(short positionParameter, char * src, short sz, char * dest){
+	short countPosition = 0;
+	int offset=-1;
+	int szSub=0;
+	int i=0;
+
+	for(i=0;i<sz;i++){
+		if(offset != -1){
+			szSub++;
+			if(src[i] == 31) break;
+		}
+		if(szSub == 0){
+			if(src[i] == 31) countPosition++;
+ 			if(countPosition == positionParameter)
+				offset = i;
+		}
+	}
+	
+	if(offset == -1 || szSub == 0) return 1;
+	strncpy(dest, src+offset, szSub);
+	dest[szSub] = 0;
+
+	return 0;
+}
+
+int LOAD_GetFilepaths(){
 	char * file = "int.dat";
 	char * file_m = "in_.dat";
 	char * file_gConf = "user_groups.conf";
@@ -43,10 +106,10 @@ void get_Filepaths(){
 	pth_Archive = pathAppend(pth_Root, folder_archive);
 	pth_folder_colorscheme = pathAppend(pth_Root, folder_colorscheme);
 
-	return;
+	return 0;
 }
 
-int LoadCategoryGroups(){
+int LOAD_GetCategoryGroups(){
 	FILE * fp;	
 	char line[320];
 
@@ -128,7 +191,7 @@ int LoadCategoryGroups(){
 	return 0;
 }
 
-int LoadEntry(char * line, entry * new_entry, entry ** previous_entry, int * n_parent){
+int LOAD_GetEntry(char * line, entry * new_entry, entry ** previous_entry, int * n_parent){
 	entry_parent * new_parent = NULL;
 
 	//Find delimiter
@@ -308,32 +371,8 @@ int LoadEntry(char * line, entry * new_entry, entry ** previous_entry, int * n_p
 	return 0;
 }
 
-int GetLineParameter(short positionParameter, char * src, short sz, char * dest){
-	short countPosition = 0;
-	int offset=-1;
-	int szSub=0;
-	int i=0;
 
-	for(i=0;i<sz;i++){
-		if(offset != -1){
-			szSub++;
-			if(src[i] == 31) break;
-		}
-		if(szSub == 0){
-			if(src[i] == 31) countPosition++;
- 			if(countPosition == positionParameter)
-				offset = i;
-		}
-	}
-	
-	if(offset == -1 || szSub == 0) return 1;
-	strncpy(dest, src+offset, szSub);
-	dest[szSub] = 0;
-
-	return 0;
-}
-
-int LoadEntries(enum LoadEntriesMode mode){
+int LOAD_GetEntries(enum LoadEntriesMode mode){
 	FILE * fp;
 	char line[400];
 
@@ -383,7 +422,7 @@ int LoadEntries(enum LoadEntriesMode mode){
 			entry_block->start_index = 0;
 		}
 
-		LoadEntry(line, &entry_block->entry[95-(i%96)], &previous_entry, &n_parent);
+		LOAD_GetEntry(line, &entry_block->entry[95-(i%96)], &previous_entry, &n_parent);
 		i++;
 	}
 
@@ -395,7 +434,7 @@ int LoadEntries(enum LoadEntriesMode mode){
 	return 0;
 }
 
-int updateInfoFromFile(entry * target){
+int LOAD_UpdateInteractionInformation(entry * target){
 	FILE * fpr, * fpw;
 	char line[320];
 
@@ -439,7 +478,7 @@ int updateInfoFromFile(entry * target){
 	return 0;
 }
 
-int loadInfoFromFile(){
+int LOAD_GetInteractionInformation(){
 	FILE * fp;
 	char line[320];
 

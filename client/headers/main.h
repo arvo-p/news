@@ -1,6 +1,8 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+#include "public.h"
+
 #define TAB_URLBASE 1
 #define TAB_TREE 2
 #define TAB_GROUP 3
@@ -73,6 +75,8 @@ entry * getNextEntry(global_e * requestGlobalEntry, int dir);
 int setGlobalEntry(global_e * target, entry * src);
 
 // --- Global Variables (Extern) ---
+
+extern PublicLoad * Load;
 
 extern cat_group * initial_group;
 extern entry * initial_entry;

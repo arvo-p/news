@@ -7,17 +7,17 @@
 
 class files_path{
 	public:
-		std::string root = "kNews";
-		std::string entries = "entries.dat";
-		std::string update_record = "updates.dat";
-		std::string feedlist = "webfeeds.conf";
-		std::string blacklist = "blacklisted.conf";
-		std::string groups = "user_groups.conf";
+		std::string rootDir = "kNews";
+		std::string entriesFilePath = "entries.dat";
+		std::string updateRecordFilePath = "updates.dat";
+		std::string feedListFilePath = "webfeeds.conf";
+		std::string blacklistFilePath = "blacklisted.conf";
+		std::string groupsFilePath = "user_groups.conf";
 
-		std::string win_getHomeDir();
-		int addPath(std::string &dest, std::string &tAdd);
-		int addRootToPath(std::string &dest, std::string &tAdd);
-		void add_root2filepaths();
+		std::string GetHomeDirectory();
+		int AddPath(std::string &dest, std::string &tAdd);
+		int AddRootToPath(std::string &dest, std::string &tAdd);
+		void ApplyRootToPaths();
 
 		files_path();
 };

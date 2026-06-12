@@ -6,7 +6,7 @@
 
 using namespace std;
 
-vector<string> returnArgs(string line){
+vector<string> ParseArguments(string line){
 	vector <string> args;
 	string arg;
 	short arg_index = 0;
@@ -47,13 +47,13 @@ vector<string> returnArgs(string line){
 	return args;
 }
 
-size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
+size_t CurlWriteData(void *contents, size_t size, size_t nmemb, void *userp)
 {
     ((std::string*)userp)->append((char*)contents, size * nmemb);
     return size * nmemb;
 }
 
-int append_to_number_number(int n, int a){
+int ConcatenateNumbers(int n, int a){
 	int res = n / 10;
 	int exp = 10;
 	
@@ -65,22 +65,22 @@ int append_to_number_number(int n, int a){
 	return ((exp*a)+n);
 }
 
-// gen_new_ID depends on mainRss, which is a global
+// GenerateNewId depends on rssManager, which is a global
 #include "feed.hpp"
-unsigned long gen_new_ID(){
-	unsigned long newID = mainRss->n_EntriesParsed;
+unsigned long GenerateNewId(){
+	unsigned long newID = rssManager->parsedEntriesCount;
 
 	struct tm datetime;
 	time_t now = time(NULL);
 	srand(now);
 	datetime = *localtime(&now);
 
-	newID = append_to_number_number(rand()%9999, newID);	
-	newID = append_to_number_number((datetime.tm_hour*60+datetime.tm_min)/5, newID);
+	newID = ConcatenateNumbers(rand()%9999, newID);	
+	newID = ConcatenateNumbers((datetime.tm_hour*60+datetime.tm_min)/5, newID);
 	return newID;
 }
 
-bool getDatetime(string &date, string type, struct tm * t){
+bool GetDatetime(string &date, string type, struct tm * t){
 	int offset = -1;
 	string timezone_string;
 	int timezone_op;
@@ -118,15 +118,15 @@ bool getDatetime(string &date, string type, struct tm * t){
 	return false;
 }
 
-void debug_printdate(struct tm * t){
+void DebugPrintDate(struct tm * t){
 	char buffer[64];
 	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d", t);
-	std::cout << "buffer gives " << buffer << std::endl; 
+	std::cout << "	DEBUG_PRINTDATE " << buffer << std::endl; 
 }
 
-int getDatetime_all(string &date, struct tm * t){
-	if(!getDatetime(date, "RFC_1123", t)){
-		if(!getDatetime(date, "ISO_INSTANT", t)){
+int ParseAnyDatetime(string &date, struct tm * t){
+	if(!GetDatetime(date, "RFC_1123", t)){
+		if(!GetDatetime(date, "ISO_INSTANT", t)){
 			return 1;
 		}
 	}

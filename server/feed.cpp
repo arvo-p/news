@@ -2,6 +2,7 @@
 #include "files_path.hpp"
 #include "blacklist.hpp"
 #include "utils.hpp"
+#include <algorithm>
 #include <iostream>
 #include <curl/curl.h>
 #include <cstring>
@@ -10,34 +11,63 @@
 using namespace std;
 
 feed::feed(){
-	fNews.open(path->entries, std::ios_base::app);
-	if(!fNews.is_open()){
-		cout << "Could not open " << path->entries << endl;
+	newsOutputStream.open(pathManager->entriesFilePath, std::ios_base::app);
+	if(!newsOutputStream.is_open()){
+		cout << "Could not open " << pathManager->entriesFilePath << endl;
 		exit(1);
 	}
 }
 
-int feed::close(){
-	cout << "Cycle finished." << endl;
-	fNews.close();
+int feed::Save(){
+	cout << "Sorting" << endl;
+	std::sort(entryList.begin(), entryList.end(), [](const Entry& a, const Entry& b){
+		struct tm tmA = a.date;
+		struct tm tmB = b.date;
+		return std::mktime(&tmA) < std::mktime(&tmB);
+	});
+
+	cout << "Saving entries" << endl;
+	for(auto& entry: entryList)
+		SaveEntry(entry);
 	return 0;
 }
 
-int feed::record_entry(string &entry_title, string &entry_link, rss_url &rssUrl){
+int feed::Close(){
+	cout << "Operation exited normally" << endl;
+	entryList.clear();
+	newsOutputStream.close();
+	return 0;
+}
+
+int feed::SaveEntry(Entry &entry){
 	uint8_t unit_separator = 31;
-	fNews << std::hex << gen_new_ID() << unit_separator << entry_title << unit_separator << entry_link;
+	newsOutputStream << std::hex << GenerateNewId() << unit_separator << entry.title << unit_separator << entry.link;
 	
-	int sz = rssUrl.groups.size();
+	int sz = entry.rssUrl.groups.size();
 	for(int i=0;i<sz;i++){
-		if(i == 0) fNews << unit_separator;
-		else fNews << " ";
-		fNews << rssUrl.groups[i];
+		if(i == 0) newsOutputStream << unit_separator;
+		else newsOutputStream << " ";
+		newsOutputStream << entry.rssUrl.groups[i];
 	}
-	fNews << endl;
+	newsOutputStream << endl;
 	return 0;
 }
 
-bool feed::Update_UpdateRecord(string &urlSrc, struct tm * t){
+int feed::RecordEntry(string &entry_title, string &entry_link, rss_url &rssUrl, string &date_str){
+	Entry entry;
+	entry.title = entry_title;
+	entry.link = entry_link;
+	entry.rssUrl = rssUrl;
+	
+	struct tm date;
+	ParseAnyDatetime(date_str, &date);
+	entry.date = date;
+
+	entryList.push_back(entry);
+	return 0;
+}
+
+bool feed::UpdateRecord(string &urlSrc, struct tm * t){
 	ofstream fw;
 	ifstream fr;
 	ostringstream filetext;
@@ -45,7 +75,7 @@ bool feed::Update_UpdateRecord(string &urlSrc, struct tm * t){
 	char output_date[20];
 	uint8_t unit_separator = 31;
 
-	fr.open(path->update_record);
+	fr.open(pathManager->updateRecordFilePath);
 	strftime(output_date, 20, "%Y-%m-%dT%H:%M:%S", t);
 
 	filetext << urlSrc << unit_separator << output_date << endl;
@@ -56,7 +86,7 @@ bool feed::Update_UpdateRecord(string &urlSrc, struct tm * t){
 	}
 	fr.close();
 
-	fw.open(path->update_record);
+	fw.open(pathManager->updateRecordFilePath);
 	fw << filetext.str();
 	fw.close();
 
@@ -64,7 +94,7 @@ bool feed::Update_UpdateRecord(string &urlSrc, struct tm * t){
 }
 
 bool feed::CompareToLastUpdate(string &urlSrc, struct tm * param_t){
-	ifstream f (path->update_record);
+	ifstream f (pathManager->updateRecordFilePath);
 	string line;
 	string saved_date_str;
 	struct tm saved_date;
@@ -81,7 +111,7 @@ bool feed::CompareToLastUpdate(string &urlSrc, struct tm * param_t){
 	}
 
 	if(!found) return true;
-	if(!getDatetime(saved_date_str, "ISO_INSTANT", &saved_date)) return false;
+	if(!GetDatetime(saved_date_str, "ISO_INSTANT", &saved_date)) return false;
 	if(CompareDates(param_t, &saved_date) == 1) return true;
 
 	return false;
@@ -89,7 +119,7 @@ bool feed::CompareToLastUpdate(string &urlSrc, struct tm * param_t){
 
 bool feed::VerifyEntryDate(string &url_src, string &date){
 	struct tm dt_entry;
-	int ret = getDatetime_all(date, &dt_entry);
+	int ret = ParseAnyDatetime(date, &dt_entry);
 	if(ret == 1){
 		cout << "Failed to parse a date." << endl;
 		return false;
@@ -97,8 +127,7 @@ bool feed::VerifyEntryDate(string &url_src, string &date){
 	return feed::CompareToLastUpdate(url_src, &dt_entry); 
 }
 
-int feed::parse(string &buffer, rss_url &rssUrl){
-	cout << "Debug : NEW PARSE" << endl;
+int feed::Parse(string &buffer, rss_url &rssUrl){
 	int ret = 0;
 	char * parsed = new char[buffer.length()+1];
 	strcpy(parsed, buffer.c_str());
@@ -122,15 +151,15 @@ int feed::parse(string &buffer, rss_url &rssUrl){
 		node = doc.first_node("feed");
 		if(node == NULL){
 			node = doc.first_node("rdf:RDF");
-			ret = feed::rdfParse(rssUrl, node);
-		}else ret = feed::atomParse(rssUrl, node);
-	}else ret = feed::rssParse(rssUrl, node);
+			ret = feed::ParseRdf(rssUrl, node);
+		}else ret = feed::ParseAtom(rssUrl, node);
+	}else ret = feed::ParseRss(rssUrl, node);
 
 	delete[] parsed;
 	return ret;
 }
 
-int feed::rssParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
+int feed::ParseRss(rss_url &rssUrl, rapidxml::xml_node<> *node){
 	cout << "\tParsing RSS" << endl;
 	rapidxml::xml_node<> *item, *title_node, *link_node, *pdate_node;
 	string pubdate_str;
@@ -148,7 +177,7 @@ int feed::rssParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 	}
 
 	struct tm t;
-	getDatetime_all(pubdate_str, &t);
+	ParseAnyDatetime(pubdate_str, &t);
 
 	while(item){
 		string link_str, title_str, pubdate_str;
@@ -167,20 +196,20 @@ int feed::rssParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 			else title_str="NO TITLE";
 		}
 		
-		bool blacklisted = mainBlacklist->check(title_str,link_str); 
+		bool blacklisted = blacklistManager->Check(title_str,link_str); 
 		bool isEntryNew = feed::VerifyEntryDate(rssUrl.url,pubdate_str);
 
 		if(!blacklisted && isEntryNew){
-			mainRss->record_entry(title_str, link_str, rssUrl);
-			mainRss->n_EntriesParsed++;
+			rssManager->RecordEntry(title_str, link_str, rssUrl, pubdate_str);
+			rssManager->parsedEntriesCount++;
 		}
 		item = item->next_sibling("item");
 	}
-	feed::Update_UpdateRecord(rssUrl.url, &t);
+	feed::UpdateRecord(rssUrl.url, &t);
 	return 0;
 }
 
-int feed::rdfParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
+int feed::ParseRdf(rss_url &rssUrl, rapidxml::xml_node<> *node){
 	struct tm t, tmNew;
 	cout << "\tParsing RDF" << endl;
 	rapidxml::xml_node<> *item, *title_node, *link_node, *pdate_node;
@@ -200,27 +229,27 @@ int feed::rdfParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 		link_str = link_node->value();
 		pubdate_str = pdate_node->value();
 	
-		getDatetime_all(pubdate_str, &t);
+		ParseAnyDatetime(pubdate_str, &t);
 		if(i++ == 0){
 			tmNew = t;
 		}else if(CompareDates(&t, &tmNew) == 1) tmNew = t;
 
-		bool blacklisted = mainBlacklist->check(title_str,link_str); 
+		bool blacklisted = blacklistManager->Check(title_str,link_str); 
 		bool isEntryNew = feed::VerifyEntryDate(rssUrl.url,pubdate_str);
 
 		if(!blacklisted && isEntryNew){
-			mainRss->record_entry(title_str, link_str, rssUrl);
-			mainRss->n_EntriesParsed++;
+			rssManager->RecordEntry(title_str, link_str, rssUrl, pubdate_str);
+			rssManager->parsedEntriesCount++;
 		}
 		item = item->next_sibling("item");
 	}
 
-	feed::Update_UpdateRecord(rssUrl.url, &tmNew);
+	feed::UpdateRecord(rssUrl.url, &tmNew);
 
 	return 0;
 }
 
-int feed::atomParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
+int feed::ParseAtom(rss_url &rssUrl, rapidxml::xml_node<> *node){
 	cout << "\tParsing ATOM" << endl;
 	rapidxml::xml_node<> *item, *title_node, *link_node, *pdate_node, *headerdate_node;
 	string pubdate_str;
@@ -234,7 +263,7 @@ int feed::atomParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 	if(headerdate_node){
 		headerDefined = true;
 		pubdate_str = headerdate_node->value();
-	    getDatetime_all(pubdate_str, &headerDatetime); 
+	    ParseAnyDatetime(pubdate_str, &headerDatetime); 
 		if(feed::VerifyEntryDate(rssUrl.url, pubdate_str) == false){
 			cout << "\tFeed already up to date" << endl;
 			return 1;
@@ -255,7 +284,7 @@ int feed::atomParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 		pubdate_str = pdate_node->value();
 
 		struct tm itemDatetime;
-		getDatetime_all(pubdate_str,&itemDatetime);
+		ParseAnyDatetime(pubdate_str,&itemDatetime);
 		
 		/* I noticed the YouTube header only has the <published> tag, which corresponds to the date of channel creation and
 		 * does not actually tell us the last update time. So I need to get from the item by doing a comparison.*/
@@ -265,23 +294,23 @@ int feed::atomParse(rss_url &rssUrl, rapidxml::xml_node<> *node){
 			headerDefined = true;
 		}
 	
-		bool blacklisted = mainBlacklist->check(title_str,link_str); 
+		bool blacklisted = blacklistManager->Check(title_str,link_str); 
 		bool isEntryNew = feed::VerifyEntryDate(rssUrl.url,pubdate_str);
 
 		if(!blacklisted && isEntryNew){
-			mainRss->record_entry(title_str, link_str, rssUrl);
-			mainRss->n_EntriesParsed++;
+			rssManager->RecordEntry(title_str, link_str, rssUrl, pubdate_str);
+			rssManager->parsedEntriesCount++;
 		}
 		item = item->next_sibling("entry");
-		debug_printdate(&itemDatetime);
+		//DebugPrintDate(&itemDatetime);
 	}
-	feed::Update_UpdateRecord(rssUrl.url, &headerDatetime);
-	//debug_printdate(&headerDatetime);
+	feed::UpdateRecord(rssUrl.url, &headerDatetime);
+	//DebugPrintDate(&headerDatetime);
 	return 0;
 }
 
 
-int feed::fetch(rss_url &rssUrl){
+int feed::Fetch(rss_url &rssUrl){
 	CURL * curl;
 	CURLcode res;
 	string &url = rssUrl.url;
@@ -295,7 +324,7 @@ int feed::fetch(rss_url &rssUrl){
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/4.0");
    	curl_easy_setopt(curl, CURLOPT_AUTOREFERER, 1);
 	curl_easy_setopt(curl, CURLOPT_CAINFO, "cacert.pem");
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWriteData);
     	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
 	
 	res = curl_easy_perform(curl);
@@ -303,7 +332,7 @@ int feed::fetch(rss_url &rssUrl){
 		fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
 		return 1;
 	}
-	mainRss->parse(readBuffer, rssUrl);
+	rssManager->Parse(readBuffer, rssUrl);
     curl_easy_cleanup(curl);
 	return 0;
 }

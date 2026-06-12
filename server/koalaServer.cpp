@@ -15,10 +15,10 @@
 using namespace std;
 
 // Global pointers
-files_path * path;
-feed * mainRss;
-blacklist * mainBlacklist;
-groups * mainGroups;
+files_path * pathManager;
+feed * rssManager;
+blacklist * blacklistManager;
+groups * groupManager;
 
 void testLocalFile(string filename){
 	cout << "Testing with local file: " << filename << endl;
@@ -33,42 +33,41 @@ void testLocalFile(string filename){
 	
 	rss_url testFeed;
 	testFeed.url = "local://" + filename;
-	mainRss->parse(content, testFeed);
-}
+	rssManager->Parse(content, testFeed);
+	}
 
-int main(int argc, char** argv){
-	path = new files_path();
-	mainBlacklist = new blacklist();
-	mainGroups = new groups();
-	mainRss = new feed();
-	
+	int main(int argc, char** argv){
+	pathManager = new files_path();
+	blacklistManager = new blacklist();
+	groupManager = new groups();
+	rssManager = new feed();
+
 	if(argc > 1 && string(argv[1]) == "test"){
 		string fileToTest = "example.atom";
 		if(argc > 2) fileToTest = argv[2];
 		testLocalFile(fileToTest);
-		mainRss->close();
+		rssManager->Close();
 		return 0;
 	}
 
-	ifstream f (path->feedlist);
+	ifstream f (pathManager->feedListFilePath);
 	if(!f.is_open()){
-		cout << path->feedlist << " was not found." << endl;
+		cout << pathManager->feedListFilePath << " was not found." << endl;
 		return 1;
 	}
 
 	string line;
 	vector <string> args, groups_vec;
-
 	while(getline(f, line)){
-		args = returnArgs(line);
+		args = ParseArguments(line);
 		if(args.empty()) continue;
-		
+
 		rss_url newFeed;
-		if(mainGroups->loaded && args.size() > 1){
-			groups_vec = returnArgs(args[1]);
+		if(groupManager->isLoaded && args.size() > 1){
+			groups_vec = ParseArguments(args[1]);
 			for(int i=0;i<groups_vec.size();i++){
-				for(custom_group registered: mainGroups->custom_groups){
-					if(is_number(groups_vec[i])){
+				for(custom_group registered: groupManager->groupList){
+					if(IsNumber(groups_vec[i])){
 						if(registered.id == std::stoi(groups_vec[i])){
 							newFeed.groups.push_back(registered.id);
 							break;
@@ -84,10 +83,10 @@ int main(int argc, char** argv){
 		}
 
 		newFeed.url = args[0];
-		mainRss->fetch(newFeed);
+		rssManager->Fetch(newFeed);
 	}
-
-	mainRss->close();
+	rssManager->Save();
+	rssManager->Close();
 
 	return 0;
-}
+	}

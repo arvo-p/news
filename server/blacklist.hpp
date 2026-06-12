@@ -6,11 +6,11 @@
 
 class blacklist{
 	public:
-		std::vector<std::string> * words;
-		std::vector<std::string> * urls;
+		std::vector<std::string> * blacklistedWords;
+		std::vector<std::string> * blacklistedUrls;
 
-		int load();
-		bool check(std::string &title, std::string &url);
+		int Load();
+		bool Check(std::string &title, std::string &url);
 		
 		blacklist();
 };

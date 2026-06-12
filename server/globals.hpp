@@ -14,9 +14,9 @@ class feed;
 class blacklist;
 class groups;
 
-extern files_path* path;
-extern feed* mainRss;
-extern blacklist* mainBlacklist;
-extern groups* mainGroups;
+extern files_path* pathManager;
+extern feed* rssManager;
+extern blacklist* blacklistManager;
+extern groups* groupManager;
 
 #endif

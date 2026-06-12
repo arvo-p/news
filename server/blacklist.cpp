@@ -6,8 +6,8 @@
 
 using namespace std;
 
-int blacklist::load(){
-	ifstream f (path->blacklist);
+int blacklist::Load(){
+	ifstream f (pathManager->blacklistFilePath);
 
 	string line;
 
@@ -29,20 +29,20 @@ int blacklist::load(){
 		}
 	}
 
-	words = vWords;
-	urls = vUrls;
+	blacklistedWords = vWords;
+	blacklistedUrls = vUrls;
 
 	return 0;
 }
 
-bool blacklist::check(string &title, string &url){
-	for(string &black:*(blacklist::words))
+bool blacklist::Check(string &title, string &url){
+	for(string &black:*(blacklist::blacklistedWords))
 		if(title.find(black) != string::npos) return true;		
-	for(string &black:*(blacklist::urls))
+	for(string &black:*(blacklist::blacklistedUrls))
 		if(url.find(black) != string::npos) return true;		
 	return false;
 }
 
 blacklist::blacklist(){
-	load();
+	Load();
 }

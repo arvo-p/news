@@ -12,9 +12,6 @@ typedef struct colorscheme{
 	int entries_nav;
 	int background;
 	char urlprefix_char;
-	/*
-	 * Some of these configs should inherit if not set
-	 */
 } colorscheme;
 
 typedef struct config{

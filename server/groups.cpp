@@ -8,13 +8,13 @@
 
 using namespace std;
 
-int groups::register_group(vector<string> &args, int lineNum){
+int groups::RegisterGroup(vector<string> &args, int lineNum){
 	if(args.size() < 3){
 		cout << "At " << lineNum << ": 3 arguments expected for register-group."  << endl;
 		return 1;
 	}
 
-	if(!is_number(args[1])){
+	if(!IsNumber(args[1])){
 		cout << "At " << lineNum << ": Number expected for first argument." << endl;
 		return 1;
 	}
@@ -23,16 +23,16 @@ int groups::register_group(vector<string> &args, int lineNum){
 	new_group.name = args[2];
 	new_group.id = std::stoi(args[1]);
 	
-	custom_groups.push_back(new_group);
+	groupList.push_back(new_group);
 
 	return 0;
 }
 
 groups::groups(){
 	ifstream f;
-	f.open(path->groups);
+	f.open(pathManager->groupsFilePath);
 	if(f.is_open()){
-		loaded = true;
+		isLoaded = true;
 		string line;
 		vector <string> args;
 		
@@ -42,9 +42,9 @@ groups::groups(){
 		while(getline(f, line)){
 			i++;
 			if(inGroups){
-				if((args = returnArgs(line)).empty()) continue; 
+				if((args = ParseArguments(line)).empty()) continue; 
 				if(args[0] == "register-group"){
-					register_group(args,i-1);
+					RegisterGroup(args,i-1);
 				}
 			}
 			if(line == "@groups") inGroups = true; 
