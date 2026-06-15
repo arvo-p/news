@@ -8,6 +8,7 @@
 #include "rapidxml-1.13/rapidxml.hpp"
 
 struct Entry{
+	unsigned long id;
 	std::string title;
 	std::string link;
     rss_url rssUrl;

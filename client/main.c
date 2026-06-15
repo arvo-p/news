@@ -62,11 +62,28 @@ int main(int argc, char * argv[]){
 	int input;
 	int scroll_ret = 0;
 	int redraw = false;
+	int g_pressed = 0;
 
 	printf("\e[?25l"); //invisible cursor
 	while(1){
 		redraw = false;
 		input = getch();
+		
+		if(input == 224 || input == 0 || input == -32){
+			int scan_code = getch();
+			int pageSize = (display_mode == 0) ? (winSZ[1] - 13) : (winSZ[1] - 5);
+			if(pageSize < 1) pageSize = 1;
+
+			if(scan_code == 73){ // Page Up
+				list_selector_move(-pageSize);
+			}else if(scan_code == 81){ // Page Down
+				list_selector_move(pageSize);
+			}
+			draw_update(false);
+			g_pressed = 0;
+			continue;
+		}
+
 		if(_kbhit() != 0) continue; // Prevent input spamming
 		
 		selected_tab->selPrevious = selected_tab->sel;
@@ -106,11 +123,19 @@ int main(int argc, char * argv[]){
 			if(!cmd_mode) printf("\e[?25h"); //visible cursor
 			
 			draw_update(false);	
-			
+			g_pressed = 0;
 			continue;
 		}
 
+		if(input != 'g') g_pressed = 0;
+
 		switch(input){
+			case 'g':
+				if(g_pressed){
+					list_selector_goto_top();
+					g_pressed = 0;
+				}else g_pressed = 1;
+				break;
 			case 'r':
 				Load->ReloadEntries();
 				break;

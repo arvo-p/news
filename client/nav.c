@@ -44,46 +44,89 @@ int list_selector_move(int step){
 
 	if((selected_tab->sel)+(selected_tab->line_offset)+step >= numEntries)
 		return 2; // Hit higher limit
+
+	if((selected_tab->sel)+(selected_tab->line_offset)+step < 0)
+		return 1; // Hit lower limit
 	
 	int isWindowLarge = winSZ[0]>displayThreshold;
-	// int isWindowSmall = !isWindowLarge; // unused
 	int diff = isWindowLarge?(selected_tab->sel)+13+step-winSZ[1]:(selected_tab->sel)+step+5-winSZ[1];
 
-	g_member * gNext = NULL;
-
-	if(diff>=0){
-		if(selected_tab->tab_mode == TAB_GROUP){
-			gNext = getNextGroupEntry(selected_tab->offset->group_member, NEXT);
-			setGlobalEntry(selected_tab->offset, gNext->entry);
-			selected_tab->offset->group_member = gNext;
-		}else{
-			setGlobalEntry(selected_tab->offset,getNextEntry(selected_tab->offset, NEXT));
+	if(step > 0 && diff>=0){
+		int actual_steps = 0;
+		for(int i=0;i<step;i++){
+			if(selected_tab->tab_mode == TAB_GROUP){
+				g_member * gNext = getNextGroupEntry(selected_tab->offset->group_member, NEXT);
+				if(gNext){
+					setGlobalEntry(selected_tab->offset, gNext->entry);
+					selected_tab->offset->group_member = gNext;
+					actual_steps++;
+				} else break;
+			}else{
+				entry * eNext = getNextEntry(selected_tab->offset, NEXT);
+				if(eNext){
+					setGlobalEntry(selected_tab->offset, eNext);
+					actual_steps++;
+				} else break;
+			}
 		}
 		
-		selected_tab->line_offset+=step;
+		selected_tab->line_offset+=actual_steps;
 		selected_tab->sel = selected_tab->selPrevious;
 		return 0;
 	}
 
-	if(selected_tab->sel+step < 0){
+	if(step < 0 && selected_tab->sel+step < 0){
 		if(selected_tab->line_offset){
-			if(selected_tab->tab_mode == TAB_GROUP){
-				gNext = getNextGroupEntry(selected_tab->offset->group_member, PREVIOUS);
-				setGlobalEntry(selected_tab->offset, gNext->entry);
-				selected_tab->offset->group_member = gNext;
-			}else{
-				setGlobalEntry(selected_tab->offset, getNextEntry(selected_tab->offset, PREVIOUS));
+			int scroll_amt = -step;
+			if(scroll_amt > selected_tab->line_offset) scroll_amt = selected_tab->line_offset;
+
+			int actual_steps = 0;
+			for(int i=0;i<scroll_amt;i++){
+				if(selected_tab->tab_mode == TAB_GROUP){
+					g_member * gPrev = getNextGroupEntry(selected_tab->offset->group_member, PREVIOUS);
+					if(gPrev){
+						setGlobalEntry(selected_tab->offset, gPrev->entry);
+						selected_tab->offset->group_member = gPrev;
+						actual_steps++;
+					} else break;
+				}else{
+					entry * ePrev = getNextEntry(selected_tab->offset, PREVIOUS);
+					if(ePrev){
+						setGlobalEntry(selected_tab->offset, ePrev);
+						actual_steps++;
+					} else break;
+				}
 			}
-			selected_tab->line_offset+=step;
+			selected_tab->line_offset-=actual_steps;
+			selected_tab->sel = selected_tab->sel + step + actual_steps;
+			if(selected_tab->sel < 0) selected_tab->sel = 0;
 		}else{
 			return 1; //Hit lower limit
 		}
-		selected_tab->sel = 0;
 		return 0;
 	}
 
 	selected_tab->sel += step;
 	return 3;
+}
+
+void list_selector_goto_top(){
+	selected_tab->sel = 0;
+	selected_tab->line_offset = 0;
+	if(selected_tab->tab_mode == TAB_SIMPLE){
+		setGlobalEntry(selected_tab->offset, initial_entry);
+	} else if(selected_tab->tab_mode == TAB_GROUP){
+		if(selected_tab->category && selected_tab->category->first_member){
+			selected_tab->offset->group_member = selected_tab->category->first_member;
+			setGlobalEntry(selected_tab->offset, selected_tab->category->first_member->entry);
+		}
+	} else if(selected_tab->tab_mode == TAB_URLBASE){
+		if(selected_tab->offset->parent && selected_tab->offset->parent->first_child){
+			child_entry * first = (child_entry *)selected_tab->offset->parent->first_child;
+			selected_tab->offset->child = first;
+			setGlobalEntry(selected_tab->offset, first->entry);
+		}
+	}
 }
 
 g_member * getNextGroupEntry(g_member * gTarget, int dir){

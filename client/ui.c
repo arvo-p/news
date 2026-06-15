@@ -115,11 +115,11 @@ int the_entry_print(entry * entry_item, int expanded_mode, int maxUrl, int title
 
 	if(expanded_mode){
 		if(refresh) ui_printf("\e[38;5;%dm\e[%dG\u2502 ", colorScheme->ui_walls, 5);
-		else  ui_printf("\e[%dG",7);
+		else ui_printf("\e[%dG",7);
 	}
 
 	if(entry_item->seen) ui_printf("\e[0;38;5;%dm",colorScheme->seen);
-	else ui_printf("\e[38;5;%dm", colorScheme->entries);
+	else ui_printf("\e[0;38;5;%dm", colorScheme->entries);
 	
 	if(i == selected_tab->sel){
 		setGlobalEntry(selected_tab->old_entry, entry_item);

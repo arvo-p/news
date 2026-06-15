@@ -41,7 +41,7 @@ int feed::Close(){
 
 int feed::SaveEntry(Entry &entry){
 	uint8_t unit_separator = 31;
-	newsOutputStream << std::hex << GenerateNewId() << unit_separator << entry.title << unit_separator << entry.link;
+	newsOutputStream << std::hex << entry.id << unit_separator << entry.title << unit_separator << entry.link;
 	
 	int sz = entry.rssUrl.groups.size();
 	for(int i=0;i<sz;i++){
@@ -55,6 +55,7 @@ int feed::SaveEntry(Entry &entry){
 
 int feed::RecordEntry(string &entry_title, string &entry_link, rss_url &rssUrl, string &date_str){
 	Entry entry;
+	entry.id = GenerateNewId();
 	entry.title = entry_title;
 	entry.link = entry_link;
 	entry.rssUrl = rssUrl;
