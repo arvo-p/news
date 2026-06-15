@@ -157,7 +157,11 @@ int main(int argc, char * argv[]){
 				tabs_NewURLBASE(TAB_URLBASE);
 				redraw = true;
 				break;
-			case 'n':
+			case 'h':
+				tabs_switchPrevious(selected_tab);
+				redraw = true;
+				break;
+			case 'l':
 				tabs_switchNext(selected_tab);
 				redraw = true;
 				break;

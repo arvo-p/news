@@ -102,6 +102,18 @@ void tabs_switchNext(tab * target){
 	return;
 }
 
+void tabs_switchPrevious(tab * target){
+	int len=0;
+	for(len=0;tabs[len]!=0;len++);
+	int new_index = (target->tab_index-1);
+	if(new_index < 0) new_index = len-1;
+	selected_tab = tabs[new_index];
+
+	tabs_updateDisplayMode(selected_tab);
+
+	return;
+}
+
 void tabs_openGroup(cat_group * requestedGroup){
 	g_member * firstMember = requestedGroup->first_member;
 	

@@ -27,6 +27,7 @@ int tabs_checkExist(char * title);
 tab * tabs_newtab(char * title, entry * offset, int tab_mode);
 void tabs_close(tab * target);
 void tabs_switchNext(tab * target);
+void tabs_switchPrevious(tab * target);
 void tabs_openGroup(cat_group * requestedGroup);
 void tabs_NewURLBASE(int tab);
 int tabs_updateDisplayMode(tab * target);
