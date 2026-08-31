@@ -11,7 +11,9 @@ int list_selector_move(int step);
 
 void draw_update(short refresh);
 void draw_cError();
+void draw_statusbar();
 void ClearLastLine();
+void ui_flush();
 void * winResize_Loop(void * arg);
 
 extern int displayThreshold;

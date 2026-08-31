@@ -4,8 +4,16 @@
 #include <string>
 #include <vector>
 
+enum FeedType{
+	UNDEF,
+	RSS,
+	RDF,
+	ATM
+};
+
 struct rss_url {
     std::string url;
+	enum FeedType feedType;
     std::vector<int> groups;
 };
 

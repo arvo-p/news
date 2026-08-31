@@ -19,12 +19,21 @@ class feed{
 	public:
 		std::ofstream newsOutputStream;
 		std::ifstream updateInputStream;
+		
+		enum ParseStatus{
+			IN_PROGRESS,
+			FINISHED_UPDATED,
+			FINISHED_NOCHANGE,
+			FAILED
+		};
 
 		feed();
 		int Fetch(rss_url &rssUrl);
 		int Parse(std::string &buffer, rss_url &rssUrl);
 		int RecordEntry(std::string &entry_title, std::string &entry_link, rss_url &rssUrl, std::string &date_str);
 		bool VerifyEntryDate(std::string &url_src, std::string &date);
+		std::string TypeToString(FeedType type);
+		void ParsePrintStatus(rss_url &rssUrl, enum ParseStatus pStatus, int count);
 		int ParseAtom(rss_url &rssUrl, rapidxml::xml_node<> *node);
 		int ParseRdf(rss_url &rssUrl, rapidxml::xml_node<> *node);
 		int ParseRss(rss_url &rssUrl, rapidxml::xml_node<> *node);

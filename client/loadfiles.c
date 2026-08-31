@@ -9,7 +9,7 @@
 #include "headers/main.h"
 #include "headers/ui.h"
 
-char *pth_gConf, *pth_folder_colorscheme, *pth_Root, * pth_EntriesInfo, * pth_EntriesInfoMod, * pth_mainNews, * pth_Archive;
+char *pth_gConf, *pth_folder_colorscheme, *pth_Root, * pth_EntriesInfo, * pth_EntriesInfoMod, * pth_mainNews, * pth_Archive, *pth_Webfeeds;
 
 int LOAD_GetEntries(enum LoadEntriesMode mode);
 int LOAD_GetInteractionInformation();
@@ -17,16 +17,23 @@ int LOAD_UpdateInteractionInformation(entry * target);
 int LOAD_GetFilepaths();
 int LOAD_GetCategoryGroups();
 int LOAD_ReloadEntries();
+int LOAD_ModifyGroups(int groupid, const char * groupname, short action);
+int LOAD_ModifyWebfeeds(const char * target_url, const char * old_groupname, const char * new_groupname, short action);
+int LOAD_GetWebfeedsList();
 
 short homepageExcludedGroups[32];
+
+webfeed_info webfeeds_list[200];
+int webfeeds_count = 0;
 
 int LOAD_INIT(struct PublicLoad * this){
 	int error = 0;
 
 	error = LOAD_GetFilepaths();
 	error += LOAD_GetCategoryGroups() << 1;
+	error += LOAD_GetWebfeedsList() << 3;
 	error += LOAD_GetEntries(NO_OFFSET) << 2;
-	error += LOAD_GetInteractionInformation() << 3;	
+	error += LOAD_GetInteractionInformation() << 4;	
 
 	if(error != 0){
 		printf("LOAD_INIT ERROR %d", error);
@@ -35,6 +42,8 @@ int LOAD_INIT(struct PublicLoad * this){
 
 	this->ReloadEntries = &LOAD_ReloadEntries;
 	this->UpdateInteractionInformation = &LOAD_UpdateInteractionInformation;
+	this->ModifyGroups = &LOAD_ModifyGroups;
+	this->ModifyWebfeeds = &LOAD_ModifyWebfeeds;
 
 	return 0;
 }
@@ -42,7 +51,7 @@ int LOAD_INIT(struct PublicLoad * this){
 int LOAD_ReloadEntries(){
 	LOAD_GetEntries(OFFSET_LAST_ENTRY);
 	if(selected_tab->tab_mode == TAB_SIMPLE) setGlobalEntry(selected_tab->offset, initial_entry);
-	else if(selected_tab->tab_mode == TAB_GROUP) {
+	else if(selected_tab->tab_mode == TAB_GROUP){
 		selected_tab->offset->group_member = selected_tab->category->first_member;
 		setGlobalEntry(selected_tab->offset, selected_tab->category->first_member->entry);
 	}
@@ -103,9 +112,102 @@ int LOAD_GetFilepaths(){
 	pth_EntriesInfoMod = pathAppend(pth_Root, file_m);
 	pth_mainNews = pathAppend(pth_Root, file_news);
 	pth_gConf = pathAppend(pth_Root, file_gConf);
+	pth_Webfeeds = pathAppend(pth_Root, "webfeeds.conf");
 	pth_Archive = pathAppend(pth_Root, folder_archive);
 	pth_folder_colorscheme = pathAppend(pth_Root, folder_colorscheme);
 
+	return 0;
+}
+
+int LOAD_GetWebfeedsList(){
+	webfeeds_count = 0;
+	FILE *fin = fopen(pth_Webfeeds, "rb");
+	if (!fin){
+		fin = fopen(pth_Webfeeds, "wb");
+		if (fin) fclose(fin);
+		return 0;
+	}
+
+	char line[512];
+	while(fgets(line, sizeof(line), fin) && webfeeds_count < 200){
+		size_t len = strlen(line);
+		while(len > 0 && (line[len-1] == '\n' || line[len-1] == '\r')){
+			line[len-1] = 0;
+			len--;
+		}
+		if (len == 0) continue;
+		
+		char url[256] = {0};
+		char groups_str[256] = {0};
+		char alias_str[128] = {0};
+
+		char *first_space = strchr(line, ' ');
+		if (first_space){
+			int u_len = first_space - line;
+			strncpy(url, line, u_len);
+			url[u_len] = 0;
+			
+			char *metadata = first_space;
+			
+			char *bracket_start = strchr(metadata, '[');
+			if (bracket_start){
+				char *bracket_end = strchr(bracket_start, ']');
+				if (bracket_end){
+					int g_len = bracket_end - bracket_start - 1;
+					strncpy(groups_str, bracket_start + 1, g_len);
+					groups_str[g_len] = 0;
+				}
+			}
+			
+			char *paren_start = strchr(metadata, '(');
+			if (paren_start){
+				char *paren_end = strchr(paren_start, ')');
+				if (paren_end){
+					int a_len = paren_end - paren_start - 1;
+					strncpy(alias_str, paren_start + 1, a_len);
+					alias_str[a_len] = 0;
+				}
+			}
+		} else {
+			strcpy(url, line);
+		}
+		
+		if (strlen(url) > 0){
+			char *start = url;
+			if (strncmp(start, "https://", 8) == 0) start += 8;
+			else if (strncmp(start, "http://", 7) == 0) start += 7;
+			
+			if (strncmp(start, "www.", 4) == 0) start += 4;
+
+			strcpy(webfeeds_list[webfeeds_count].url, start);
+			strcpy(webfeeds_list[webfeeds_count].alias, alias_str);
+			webfeeds_list[webfeeds_count].group_count = 0;
+			
+			if (strlen(groups_str) > 0){
+				char *token = strtok(groups_str, ",");
+				while (token != NULL){
+					while(*token == ' ') token++;
+					int tlen = strlen(token);
+					while(tlen > 0 && token[tlen-1] == ' '){ token[tlen-1] = 0; tlen--; }
+					
+					if (tlen > 0 && webfeeds_list[webfeeds_count].group_count < 20){
+						cat_group * curr = initial_group;
+						while(curr){
+							if (_stricmp(curr->name, token) == 0){
+								webfeeds_list[webfeeds_count].groups[webfeeds_list[webfeeds_count].group_count++] = curr;
+								break;
+							}
+							curr = curr->next;
+						}
+					}
+					token = strtok(NULL, ",");
+				}
+			}
+			
+			webfeeds_count++;
+		}
+	}
+	fclose(fin);
 	return 0;
 }
 
@@ -117,7 +219,11 @@ int LOAD_GetCategoryGroups(){
 	cat_group * previous = NULL;
 
 	fp = fopen(pth_gConf, "rb");
-	if(!fp) return 1;
+	if(!fp){
+		fp = fopen(pth_gConf, "wb");
+		if (fp) fclose(fp);
+		return 0;
+	}
 	while (fgets(line, sizeof(line), fp)){			
 		if(strncmp(line, "homepage-exclude", 16) == 0){
 			int step = 0;
@@ -398,7 +504,11 @@ int LOAD_GetEntries(enum LoadEntriesMode mode){
 	static chunk * entry_block = NULL;
 	
 	fp = fopen(pth_mainNews, "rb");
-	if(!fp) return 1;
+	if(!fp){
+		fp = fopen(pth_mainNews, "wb");
+		if (fp) fclose(fp);
+		return 0;
+	}
 
 	int i=0;
 	while (fgets(line, sizeof(line), fp)){				
@@ -483,7 +593,11 @@ int LOAD_GetInteractionInformation(){
 	char line[320];
 
 	fp = fopen(pth_EntriesInfo, "rb");
-	if(!fp) return 1;
+	if(!fp){
+		fp = fopen(pth_EntriesInfo, "wb");
+		if (fp) fclose(fp);
+		return 0;
+	}
 
 	char * args[3] = {NULL, NULL, NULL};
 	int args_c = 1;
@@ -520,3 +634,392 @@ int LOAD_GetInteractionInformation(){
 
 	return 0;
 }
+
+int LOAD_ModifyGroups(int groupid, const char * groupname, short action){
+	FILE * fp;
+	char buffer[256];
+	
+	short doesFileExist = 1;
+	short isInsideGroupSection = 0;
+	short isGroupnameArgumentMatched = 0;
+	int matchedLineNum = 0;
+	int getGroupId = -1;
+			
+	if((fp = fopen(pth_gConf, "rb")) != NULL){
+		int lineCount = 0;
+		while(fgets(buffer, sizeof(buffer), fp)){
+			lineCount++;
+
+			int i=0;
+			short newarg = 0;
+			short arguments_count = 0;
+			char * arguments[3] = {0};
+	
+			if(buffer[0] == '#')
+				continue;
+			
+			size_t len = strlen(buffer);
+			while(len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r')){
+				buffer[len-1] = 0;
+				len--;
+			}
+
+			if(!isInsideGroupSection){
+				isInsideGroupSection=(strcmp(buffer, "@groups")==0);
+				continue;
+			}
+			
+			arguments[0] = &buffer[0];
+			short was_space = 0;
+			while(buffer[i] != 0){
+				if(buffer[i] == ' '){
+					buffer[i] = 0;
+					was_space = 1;
+				}
+				else if(was_space){
+					was_space = 0;
+					arguments[++arguments_count] = &buffer[i];
+					if(arguments_count == 2) break;
+				}
+				i++;
+			}
+			
+			if(strcmp(arguments[0], "register-group") == 0){
+				if(arguments_count==2){  
+					int id = atoi(arguments[1]);
+					if(id == groupid){
+						matchedLineNum = lineCount;
+						getGroupId = id;
+					}
+
+					if(groupname!=NULL && strcmp(arguments[2], groupname)==0){
+						isGroupnameArgumentMatched = 1;
+					}
+				}
+			}
+		}
+		fclose(fp);
+	} else doesFileExist = 0;
+	
+	if(action == 1){ // Register-group _ groupid arg is the assigned id
+		if(isGroupnameArgumentMatched==0 && groupname!=NULL){
+			FILE * fp = fopen(pth_gConf,"ab");
+			if(fp){
+				if(!doesFileExist) fprintf(fp,"@groups");
+				fprintf(fp, "\nregister-group %d %s\n", groupid, groupname);
+			}
+			fclose(fp);
+
+			cat_group *new_group = malloc(sizeof(cat_group));
+			new_group->id = groupid;
+			strncpy(new_group->name, groupname, 20);
+			new_group->name[20] = '\0';
+			new_group->next = NULL;
+			new_group->first_member = NULL;
+			new_group->count = 0;
+
+			if (initial_group == NULL){
+				initial_group = new_group;
+			} else {
+				cat_group *tail = initial_group;
+				while (tail->next) tail = tail->next;
+				tail->next = new_group;
+			}
+			return 0; // Success
+		}
+	}
+	
+	if ((action == 2 || action == 3) && doesFileExist == 1 && matchedLineNum > 0){
+		if (action == 3 && isGroupnameArgumentMatched) return 1; // Cannot rename to a name that already exists
+
+		char tmp_path[256];
+		snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", pth_gConf);
+
+		FILE *fin = fopen(pth_gConf, "rb");
+		FILE *fout = fopen(tmp_path, "wb");
+		if (fin && fout){
+			char line[256];
+			int lineIdx = 0;
+			while(fgets(line, sizeof(line), fin)){
+				lineIdx++;
+				if (lineIdx == matchedLineNum){
+					if (action == 3){ // Rename
+						fprintf(fout, "register-group %d %s\n", groupid, groupname);
+					}
+					// If action == 2 (Remove), we just skip writing the line entirely!
+				} else {
+					fputs(line, fout);
+				}
+			}
+			fclose(fin);
+			fclose(fout);
+			
+			// Replace old config with new config
+			remove(pth_gConf);
+			rename(tmp_path, pth_gConf);
+
+			// Update in-memory linked list
+			cat_group *prev = NULL;
+			cat_group *curr = initial_group;
+			while(curr){
+				if(curr->id == groupid){
+					if(action == 2){
+						// Group removed globally
+						LOAD_ModifyWebfeeds(NULL, curr->name, NULL, 2);
+						if(prev) prev->next = curr->next;
+						else initial_group = curr->next;
+						free(curr); // Free the memory!
+					} else if (action == 3){
+						// Group renamed globally
+						LOAD_ModifyWebfeeds(NULL, curr->name, groupname, 1);
+						strncpy(curr->name, groupname, 20);
+						curr->name[20] = '\0';
+					}
+					break;
+				}
+				prev = curr;
+				curr = curr->next;
+			}
+			return 0; // Success
+		}
+		if (fin) fclose(fin);
+		if (fout) fclose(fout);
+	}
+
+	return 1;	
+}
+
+int LOAD_ModifyWebfeeds(const char * target_url, const char * old_groupname, const char * new_groupname, short action){
+	int target_found = 0;
+	int group_removed = 0;
+	
+	if (action == 5){ // Add Feed
+		FILE *fp = fopen(pth_Webfeeds, "ab");
+		if (fp){
+			fprintf(fp, "\n%s", target_url);
+			fclose(fp);
+			LOAD_GetWebfeedsList(); // Update autocomplete
+			return 0;
+		}
+		return 1;
+	}
+
+	char tmp_path[256];
+	snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", pth_Webfeeds);
+
+	FILE *fin = fopen(pth_Webfeeds, "rb");
+	if(!fin) return 1;
+
+	FILE *fout = fopen(tmp_path, "wb");
+	if(!fout){
+		fclose(fin);
+		return 1;
+	}
+
+	char line[512];
+	while(fgets(line, sizeof(line), fin)){
+		size_t len = strlen(line);
+		while(len > 0 && (line[len-1] == '\n' || line[len-1] == '\r')){
+			line[len-1] = 0;
+			len--;
+		}
+		if (len == 0) continue;
+		
+		char url[256] = {0};
+		char group[256] = {0};
+		char alias[128] = {0};
+		int has_group = 0;
+		int has_alias = 0;
+
+		char *first_space = strchr(line, ' ');
+		if (first_space){
+			int u_len = first_space - line;
+			strncpy(url, line, u_len);
+			url[u_len] = 0;
+			
+			char *metadata = first_space;
+			
+			char *bracket_start = strchr(metadata, '[');
+			if (bracket_start){
+				char *bracket_end = strchr(bracket_start, ']');
+				if (bracket_end){
+					has_group = 1;
+					int g_len = bracket_end - bracket_start - 1;
+					strncpy(group, bracket_start + 1, g_len);
+					group[g_len] = 0;
+				}
+			}
+			
+			char *paren_start = strchr(metadata, '(');
+			if (paren_start){
+				char *paren_end = strchr(paren_start, ')');
+				if (paren_end){
+					has_alias = 1;
+					int a_len = paren_end - paren_start - 1;
+					strncpy(alias, paren_start + 1, a_len);
+					alias[a_len] = 0;
+				}
+			}
+		} else {
+			int u_len = strlen(line);
+			while(u_len > 0 && line[u_len-1] == ' ') u_len--;
+			strncpy(url, line, u_len);
+			url[u_len] = 0;
+		}
+
+		char *url_stripped = url;
+		if (strncmp(url_stripped, "https://", 8) == 0) url_stripped += 8;
+		else if (strncmp(url_stripped, "http://", 7) == 0) url_stripped += 7;
+		if (strncmp(url_stripped, "www.", 4) == 0) url_stripped += 4;
+
+		const char *target_stripped = target_url;
+		if (target_stripped){
+			if (strncmp(target_stripped, "https://", 8) == 0) target_stripped += 8;
+			else if (strncmp(target_stripped, "http://", 7) == 0) target_stripped += 7;
+			if (strncmp(target_stripped, "www.", 4) == 0) target_stripped += 4;
+		}
+
+		int is_target_url = (target_stripped && (strcmp(url_stripped, target_stripped) == 0 || (has_alias && _stricmp(alias, target_url) == 0)));
+		
+		if (action == 7){ // Set Alias
+			if (!is_target_url){
+				fprintf(fout, "%s", url);
+				if (has_alias) fprintf(fout, " (%s)", alias);
+				if (has_group) fprintf(fout, " [%s]", group);
+				fprintf(fout, "\n");
+				continue;
+			}
+			target_found = 1;
+			fprintf(fout, "%s", url);
+			if (new_groupname && strlen(new_groupname) > 0) fprintf(fout, " (%s)", new_groupname);
+			if (has_group) fprintf(fout, " [%s]", group);
+			fprintf(fout, "\n");
+			continue;
+		} else if (action == 6){ // Remove Feed
+			if (is_target_url){
+				target_found = 1;
+				continue; // Skip writing entirely!
+			}
+		} else if (action == 3 || action == 4){
+			if (!is_target_url){
+				fprintf(fout, "%s", url);
+				if (has_alias) fprintf(fout, " (%s)", alias);
+				if (has_group) fprintf(fout, " [%s]", group);
+				fprintf(fout, "\n");
+				continue;
+			}
+			target_found = 1;
+		}
+
+		if (action >= 1 && action <= 4){
+			// If action 3, we proceed even if has_group is 0 so we can add it
+			if (has_group || action == 3){
+				char group_copy[256] = {0};
+				if (has_group) strcpy(group_copy, group);
+
+				char new_group_str[256] = {0};
+				int first = 1;
+				int found = 0;
+				
+				if (has_group){
+					char *token = strtok(group_copy, ",");
+					while (token != NULL){
+						while(*token == ' ') token++;
+						int tlen = strlen(token);
+						while(tlen > 0 && token[tlen-1] == ' '){ token[tlen-1] = 0; tlen--; }
+
+						if (action == 1 || action == 2){
+							if (_stricmp(token, old_groupname) == 0){
+								found = 1;
+								if (action == 1){ // Global Rename
+									if (!first) strcat(new_group_str, ",");
+									strcat(new_group_str, new_groupname);
+									first = 0;
+								}
+							} else {
+								if (!first) strcat(new_group_str, ",");
+								strcat(new_group_str, token);
+								first = 0;
+							}
+						} else if (action == 3 || action == 4){
+							// Use new_groupname as the target group to add/remove for the URL
+							if (_stricmp(token, new_groupname) == 0){
+								found = 1;
+								if (action == 3){ // Add (already exists, so we just keep it)
+									if (!first) strcat(new_group_str, ",");
+									strcat(new_group_str, token);
+									first = 0;
+								}
+								// If action 4 (Remove), we skip adding it to new_group_str!
+							} else {
+								if (!first) strcat(new_group_str, ",");
+								strcat(new_group_str, token);
+								first = 0;
+							}
+						}
+						token = strtok(NULL, ",");
+					}
+				}
+
+				if (action == 3 && !found){ // Append the new group!
+					if (!first) strcat(new_group_str, ",");
+					strcat(new_group_str, new_groupname);
+					found = 1;
+				}
+
+				if (action == 4 && found){
+					group_removed = 1; // Mark that we successfully removed it
+				}
+
+				if ((action == 1 || action == 2) && !found){
+					// Global action but old group not found on this URL, write original
+					fprintf(fout, "%s", url);
+					if (has_alias) fprintf(fout, " (%s)", alias);
+					if (has_group) fprintf(fout, " [%s]", group);
+					fprintf(fout, "\n");
+					continue;
+				}
+
+				if (strlen(new_group_str) > 0){
+					fprintf(fout, "%s", url);
+					if (has_alias) fprintf(fout, " (%s)", alias);
+					fprintf(fout, " [%s]\n", new_group_str);
+				} else {
+					fprintf(fout, "%s", url);
+					if (has_alias) fprintf(fout, " (%s)", alias);
+					fprintf(fout, "\n");
+				}
+				continue;
+			}
+		}
+		
+		// If no modifications were made, just print the original extracted components
+		if (has_group){
+			fprintf(fout, "%s", url);
+			if (has_alias) fprintf(fout, " (%s)", alias);
+			fprintf(fout, " [%s]\n", group);
+		} else {
+			fprintf(fout, "%s", url);
+			if (has_alias) fprintf(fout, " (%s)", alias);
+			fprintf(fout, "\n");
+		}
+	}
+	fclose(fin);
+	fclose(fout);
+	
+	if ((action == 3 || action == 4 || action == 6 || action == 7) && !target_found){
+		remove(tmp_path);
+		return 2; // Error: URL not found
+	}
+	if (action == 4 && !group_removed){
+		remove(tmp_path);
+		return 3; // Error: Group not found in URL
+	}
+
+	remove(pth_Webfeeds);
+	rename(tmp_path, pth_Webfeeds);
+	
+	LOAD_GetWebfeedsList(); // Refresh autocomplete cache!
+	return 0;
+}
+

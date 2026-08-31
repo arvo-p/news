@@ -36,6 +36,7 @@ int tabs_updateDisplayMode(tab * target);
 #define TAB_URLBASE 1
 #define TAB_TREE 2
 #define TAB_GROUP 3
+#define TAB_WEBFEEDS 4
 
 extern tab * tabs[16];
 extern tab * selected_tab;

@@ -18,8 +18,8 @@ static char *ui_buffer = NULL;
 static size_t ui_buffer_size = 0;
 static size_t ui_buffer_pos = 0;
 
-void ui_printf(const char *format, ...) {
-    if (!ui_buffer) {
+void ui_printf(const char *format, ...){
+    if (!ui_buffer){
         ui_buffer_size = 1024 * 64;
         ui_buffer = malloc(ui_buffer_size);
     }
@@ -31,7 +31,7 @@ void ui_printf(const char *format, ...) {
 
     if (needed < 0) return;
 
-    if ((size_t)needed >= ui_buffer_size - ui_buffer_pos) {
+    if ((size_t)needed >= ui_buffer_size - ui_buffer_pos){
         ui_buffer_size = (ui_buffer_pos + needed) * 2 + 1024;
         ui_buffer = realloc(ui_buffer, ui_buffer_size);
         va_start(args, format);
@@ -42,8 +42,8 @@ void ui_printf(const char *format, ...) {
     ui_buffer_pos += needed;
 }
 
-void ui_flush() {
-    if (ui_buffer && ui_buffer_pos > 0) {
+void ui_flush(){
+    if (ui_buffer && ui_buffer_pos > 0){
         fwrite(ui_buffer, 1, ui_buffer_pos, stdout);
         fflush(stdout);
         ui_buffer_pos = 0;
@@ -154,6 +154,66 @@ int the_entry_print(entry * entry_item, int expanded_mode, int maxUrl, int title
 }
 
 int display_entries(short refresh){
+	if (selected_tab->tab_mode == TAB_WEBFEEDS){
+		int expanded_mode = winSZ[0]>displayThreshold;
+		int maxHeight = expanded_mode?winSZ[1]-13:winSZ[1]-4;
+		int maxUrl = winSZ[0]/2 - 15; // Adjusted for wider alias column
+		
+		if (webfeeds_count == 0){
+			ui_printf("\n    (No webfeeds found)\e[0K\n");
+			return 0;
+		}
+
+		for(int i=0; i < maxHeight; i++){
+			int idx = selected_tab->line_offset + i;
+			if (idx >= webfeeds_count){
+				ui_printf("\e[0K\n");
+				continue;
+			}
+			
+			ui_printf("\e[0K"); // Clear line start
+			
+			// --- Alias (acts like Title: reversed when selected) ---
+			ui_printf("\e[0;38;5;%dm", colorScheme->entries);
+			if (i == selected_tab->sel) ui_printf("\e[7m");
+			
+			int alias_len = strlen(webfeeds_list[idx].alias);
+			if (alias_len > 0){
+				ui_printf("  %-25.25s ", webfeeds_list[idx].alias);
+			} else {
+				ui_printf("  %-25.25s ", "");
+			}
+			
+			if (i == selected_tab->sel) ui_printf("\e[27m");
+			
+			// --- Separator ---
+			ui_printf("\e[38;5;%dm", colorScheme->ui_walls);
+			ui_printf("\u2502 ");
+			
+			// --- URL (acts like URL: underlined when selected) ---
+			ui_printf("\e[38;5;%dm", colorScheme->url);
+			if (i == selected_tab->sel) ui_printf("\e[4m");
+			
+			ui_printf("%-*.*s ", maxUrl, maxUrl, webfeeds_list[idx].url);
+			
+			if (i == selected_tab->sel) ui_printf("\e[24m");
+			
+			// --- Separator ---
+			ui_printf("\e[38;5;%dm", colorScheme->ui_walls);
+			ui_printf("\u2502 ");
+			
+			// --- Groups ---
+			ui_printf("\e[38;5;%dm", colorScheme->entries);
+			for (int g = 0; g < webfeeds_list[idx].group_count; g++){
+				ui_printf("[%s] ", webfeeds_list[idx].groups[g]->name);
+			}
+			
+			ui_printf("\e[0m"); // Reset all formatting
+			newline();
+		}
+		return 0;
+	}
+
 	global_e * huidig = selected_tab->working; 
 	if(setGlobalEntry(huidig, selected_tab->offset->entry)){
 		ui_printf("\n    (Empty feed)\e[0K\n");

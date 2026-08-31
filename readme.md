@@ -68,9 +68,10 @@ g++ -o koalaServer koalaServer.cpp files_path.cpp blacklist.cpp groups.cpp feed.
 
 The application reads and saves its settings in the Windows AppData directory at:
 `%APPDATA%\kNews\` (usually `C:\Users\<YourUsername>\AppData\Roaming\kNews\`)
+*(Note: This folder and its configuration files are generated automatically the first time you run the client).*
 
 ### 1. Registering Groups (`user_groups.conf`)
-Create or edit `%APPDATA%\kNews\user_groups.conf` to declare custom categories:
+You can use the `:group-register` command in the app, or manually edit `%APPDATA%\kNews\user_groups.conf` to declare custom categories:
 ```text
 @groups
 register-group 1 Tech
@@ -79,7 +80,7 @@ register-group 3 Video
 ```
 
 ### 2. Adding Feeds (`webfeeds.conf`)
-Create or edit `%APPDATA%\kNews\webfeeds.conf` to list your RSS/Atom feeds, mapping them to groups if desired:
+You can use the `:feed-add` command in the app, or edit `%APPDATA%\kNews\webfeeds.conf` to list your feeds:
 ```text
 https://news.ycombinator.com/rss [Tech,News]
 https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrdUwZs3IHrMcna1QG [Video]
@@ -140,9 +141,27 @@ news.exe
 
 ## Command Mode
 
-Press <kbd>:</kbd> while viewing the feed to open the prompt:
+Press <kbd>:</kbd> while viewing the feed to open the prompt. The command line features a powerful autocomplete engine; press <kbd>Tab</kbd> to cycle through suggestions. Quotes (`" "`) can be used to pass arguments containing spaces.
 
-- `:open-group <group_name>` (or `:g <group_name>`) — Opens a new tab containing only articles from the requested group category.
-- <kbd>Tab</kbd> — Autocompletes the group name dynamically.
+### Group Management
+- `:group-open <group_name>` (Alias: `:g`) — Opens a new tab containing only articles from the requested group category.
+- `:group-register <name>` (Alias: `:greg`) — Registers a new category group.
+- `:group-rename <old_name> <new_name>` (Alias: `:gren`) — Renames a group globally.
+- `:group-remove <name>` (Alias: `:grem`) — Deletes a group globally.
+
+### Feed Management
+- `:feeds` (Alias: `:f`) — Opens the **Webfeeds** table tab to view all your registered feeds, aliases, and assigned groups.
+- `:feed-add <url>` (Alias: `:fa`) — Adds a new feed to your list.
+- `:feed-remove <url>` (Alias: `:fr`) — Removes a feed from your list.
+- `:feed-group <url> <group_name>` (Alias: `:fg`) — Assigns a category group to a feed.
+- `:feed-ungroup <url> <group_name>` (Alias: `:fu`) — Removes a category group from a feed.
+- `:feed-alias <url_or_alias> <alias_name>` (Alias: `:fal`) — Gives a feed an easy-to-read name (e.g. `"De Nieuwe Wereld"`). Omit the second argument to remove the alias.
+
+*(Note: When viewing the `:feeds` tab, all Feed Management commands are context-aware. You can omit the `<url>` argument and the command will automatically apply to the feed currently highlighted by your cursor!)*
+
+### Command Keys
+- <kbd>Tab</kbd> — Autocompletes URLs, Aliases, and Group names dynamically.
+- <kbd>Up</kbd> / <kbd>Down</kbd> — Navigate through autocomplete suggestions.
+- <kbd>Ctrl+V</kbd> / <kbd>Right Click</kbd> — Paste long URLs directly into the prompt.
 - <kbd>Backspace</kbd> — Erase character. Exits command mode if the buffer is empty.
 - <kbd>Enter</kbd> — Run command.

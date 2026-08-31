@@ -20,6 +20,9 @@ int getEntriesNum(){
 		case TAB_GROUP:
 			return selected_tab->category->count;
 			break;
+		case TAB_WEBFEEDS:
+			return webfeeds_count;
+			break;
 	}
 	return 0;
 }
@@ -53,20 +56,24 @@ int list_selector_move(int step){
 
 	if(step > 0 && diff>=0){
 		int actual_steps = 0;
-		for(int i=0;i<step;i++){
-			if(selected_tab->tab_mode == TAB_GROUP){
-				g_member * gNext = getNextGroupEntry(selected_tab->offset->group_member, NEXT);
-				if(gNext){
-					setGlobalEntry(selected_tab->offset, gNext->entry);
-					selected_tab->offset->group_member = gNext;
-					actual_steps++;
-				} else break;
-			}else{
-				entry * eNext = getNextEntry(selected_tab->offset, NEXT);
-				if(eNext){
-					setGlobalEntry(selected_tab->offset, eNext);
-					actual_steps++;
-				} else break;
+		if (selected_tab->tab_mode == TAB_WEBFEEDS){
+			actual_steps = step;
+		} else {
+			for(int i=0;i<step;i++){
+				if(selected_tab->tab_mode == TAB_GROUP){
+					g_member * gNext = getNextGroupEntry(selected_tab->offset->group_member, NEXT);
+					if(gNext){
+						setGlobalEntry(selected_tab->offset, gNext->entry);
+						selected_tab->offset->group_member = gNext;
+						actual_steps++;
+					} else break;
+				}else{
+					entry * eNext = getNextEntry(selected_tab->offset, NEXT);
+					if(eNext){
+						setGlobalEntry(selected_tab->offset, eNext);
+						actual_steps++;
+					} else break;
+				}
 			}
 		}
 		
@@ -81,20 +88,24 @@ int list_selector_move(int step){
 			if(scroll_amt > selected_tab->line_offset) scroll_amt = selected_tab->line_offset;
 
 			int actual_steps = 0;
-			for(int i=0;i<scroll_amt;i++){
-				if(selected_tab->tab_mode == TAB_GROUP){
-					g_member * gPrev = getNextGroupEntry(selected_tab->offset->group_member, PREVIOUS);
-					if(gPrev){
-						setGlobalEntry(selected_tab->offset, gPrev->entry);
-						selected_tab->offset->group_member = gPrev;
-						actual_steps++;
-					} else break;
-				}else{
-					entry * ePrev = getNextEntry(selected_tab->offset, PREVIOUS);
-					if(ePrev){
-						setGlobalEntry(selected_tab->offset, ePrev);
-						actual_steps++;
-					} else break;
+			if (selected_tab->tab_mode == TAB_WEBFEEDS){
+				actual_steps = scroll_amt;
+			} else {
+				for(int i=0;i<scroll_amt;i++){
+					if(selected_tab->tab_mode == TAB_GROUP){
+						g_member * gPrev = getNextGroupEntry(selected_tab->offset->group_member, PREVIOUS);
+						if(gPrev){
+							setGlobalEntry(selected_tab->offset, gPrev->entry);
+							selected_tab->offset->group_member = gPrev;
+							actual_steps++;
+						} else break;
+					}else{
+						entry * ePrev = getNextEntry(selected_tab->offset, PREVIOUS);
+						if(ePrev){
+							setGlobalEntry(selected_tab->offset, ePrev);
+							actual_steps++;
+						} else break;
+					}
 				}
 			}
 			selected_tab->line_offset-=actual_steps;

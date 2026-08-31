@@ -19,7 +19,7 @@ feed::feed(){
 }
 
 int feed::Save(){
-	cout << "Sorting" << endl;
+	cout << "Sorting entries" << endl;
 	std::sort(entryList.begin(), entryList.end(), [](const Entry& a, const Entry& b){
 		struct tm tmA = a.date;
 		struct tm tmB = b.date;
@@ -33,7 +33,7 @@ int feed::Save(){
 }
 
 int feed::Close(){
-	cout << "Operation exited normally" << endl;
+	cout << "Exited normally" << endl;
 	entryList.clear();
 	newsOutputStream.close();
 	return 0;
@@ -118,6 +118,38 @@ bool feed::CompareToLastUpdate(string &urlSrc, struct tm * param_t){
 	return false;
 }
 
+std::string feed::TypeToString(FeedType type) {
+    switch (type) {
+        case RSS:   return "RSS";
+        case RDF:   return "RDF";
+        case ATM:  return "ATOM";
+        default:    return "UNDEFINED";
+    }
+}
+
+void feed::ParsePrintStatus(rss_url &rssUrl, enum ParseStatus pStatus, int count){
+	
+	cout << rssUrl.url << " : ";
+
+	switch(pStatus){
+		case FAILED:
+			cout << "failed";
+			break;
+		case IN_PROGRESS:
+			cout << "fetching " << feed::TypeToString(rssUrl.feedType) << " | " << count << " new entries"; 
+			break;
+		case FINISHED_UPDATED:
+			cout << "up to date | " << count << " new entries";
+			break;
+		case FINISHED_NOCHANGE:
+			cout << "already up to date | no changes";
+			break;
+		default:
+			break;
+	}
+	cout << endl;
+}
+
 bool feed::VerifyEntryDate(string &url_src, string &date){
 	struct tm dt_entry;
 	int ret = ParseAnyDatetime(date, &dt_entry);
@@ -136,32 +168,36 @@ int feed::Parse(string &buffer, rss_url &rssUrl){
 	rapidxml::xml_document<> doc;
 	rapidxml::xml_node<> *node;
 	
+	rssUrl.feedType = UNDEF; 
+
 	try{
    		doc.parse<0>(parsed);
 	}catch(const exception& e){
-     	cout << "Failure to fetch :( " << rssUrl.url << endl;
-		cout << "Trying next" << endl;
+		feed::ParsePrintStatus(rssUrl, FAILED, 0);
 		return 1;
 	}
 
-	cout << "* [" << rssUrl.url << "] " << endl;
-	cout << "\tFetching." << endl;
-	
 	node = doc.first_node("rss");
 	if(node == NULL){
 		node = doc.first_node("feed");
 		if(node == NULL){
 			node = doc.first_node("rdf:RDF");
+			rssUrl.feedType = RDF;
 			ret = feed::ParseRdf(rssUrl, node);
-		}else ret = feed::ParseAtom(rssUrl, node);
-	}else ret = feed::ParseRss(rssUrl, node);
+		}else{
+			rssUrl.feedType = ATM;
+			ret = feed::ParseAtom(rssUrl, node);
+		}
+	}else{
+		rssUrl.feedType = RSS;
+		ret = feed::ParseRss(rssUrl, node);
+	}
 
 	delete[] parsed;
 	return ret;
 }
 
 int feed::ParseRss(rss_url &rssUrl, rapidxml::xml_node<> *node){
-	cout << "\tParsing RSS" << endl;
 	rapidxml::xml_node<> *item, *title_node, *link_node, *pdate_node;
 	string pubdate_str;
 
@@ -173,13 +209,14 @@ int feed::ParseRss(rss_url &rssUrl, rapidxml::xml_node<> *node){
 	item = node->first_node("item");
 	pubdate_str = pdate_node->value();
 	if(feed::VerifyEntryDate(rssUrl.url, pubdate_str) == false){
-		cout << "\tFeed already up to date" << endl;
+		feed::ParsePrintStatus(rssUrl, FINISHED_NOCHANGE, 0); 
 		return 1;
 	}
 
 	struct tm t;
 	ParseAnyDatetime(pubdate_str, &t);
 
+	int countNewEntries = 0;
 	while(item){
 		string link_str, title_str, pubdate_str;
 		link_node = item->first_node("link");
@@ -202,23 +239,31 @@ int feed::ParseRss(rss_url &rssUrl, rapidxml::xml_node<> *node){
 
 		if(!blacklisted && isEntryNew){
 			rssManager->RecordEntry(title_str, link_str, rssUrl, pubdate_str);
+			countNewEntries++;
+			feed::ParsePrintStatus(rssUrl, IN_PROGRESS, countNewEntries);
 			rssManager->parsedEntriesCount++;
 		}
 		item = item->next_sibling("item");
 	}
+
 	feed::UpdateRecord(rssUrl.url, &t);
+	if(countNewEntries == 0)
+		feed::ParsePrintStatus(rssUrl, FINISHED_NOCHANGE, countNewEntries);
+	else
+		feed::ParsePrintStatus(rssUrl, FINISHED_UPDATED, countNewEntries);
+
 	return 0;
 }
 
 int feed::ParseRdf(rss_url &rssUrl, rapidxml::xml_node<> *node){
 	struct tm t, tmNew;
-	cout << "\tParsing RDF" << endl;
 	rapidxml::xml_node<> *item, *title_node, *link_node, *pdate_node;
 	string pubdate_str;
 
 	item = node->first_node("item");
 
 	int i=0;
+	int countNewEntries = 0;
 	while(item){
 		string title_str, link_str, pubdate_str;
 		title_node = item->first_node("title");
@@ -240,10 +285,17 @@ int feed::ParseRdf(rss_url &rssUrl, rapidxml::xml_node<> *node){
 
 		if(!blacklisted && isEntryNew){
 			rssManager->RecordEntry(title_str, link_str, rssUrl, pubdate_str);
+			countNewEntries++;
+			feed::ParsePrintStatus(rssUrl, IN_PROGRESS, countNewEntries);
 			rssManager->parsedEntriesCount++;
 		}
 		item = item->next_sibling("item");
 	}
+
+	if(countNewEntries == 0)
+		feed::ParsePrintStatus(rssUrl, FINISHED_NOCHANGE, countNewEntries);
+	else
+		feed::ParsePrintStatus(rssUrl, FINISHED_UPDATED, countNewEntries);
 
 	feed::UpdateRecord(rssUrl.url, &tmNew);
 
@@ -251,7 +303,6 @@ int feed::ParseRdf(rss_url &rssUrl, rapidxml::xml_node<> *node){
 }
 
 int feed::ParseAtom(rss_url &rssUrl, rapidxml::xml_node<> *node){
-	cout << "\tParsing ATOM" << endl;
 	rapidxml::xml_node<> *item, *title_node, *link_node, *pdate_node, *headerdate_node;
 	string pubdate_str;
 
@@ -266,12 +317,13 @@ int feed::ParseAtom(rss_url &rssUrl, rapidxml::xml_node<> *node){
 		pubdate_str = headerdate_node->value();
 	    ParseAnyDatetime(pubdate_str, &headerDatetime); 
 		if(feed::VerifyEntryDate(rssUrl.url, pubdate_str) == false){
-			cout << "\tFeed already up to date" << endl;
+			feed::ParsePrintStatus(rssUrl, FINISHED_NOCHANGE, 0); 
 			return 1;
 		}
 	}
 
 	item = node->first_node("entry");
+	int countNewEntries = 0;
 	while(item){
 		string title_str, link_str, pubdate_str;
 		title_node = item->first_node("title");
@@ -300,13 +352,22 @@ int feed::ParseAtom(rss_url &rssUrl, rapidxml::xml_node<> *node){
 
 		if(!blacklisted && isEntryNew){
 			rssManager->RecordEntry(title_str, link_str, rssUrl, pubdate_str);
+			countNewEntries++;
+			feed::ParsePrintStatus(rssUrl, IN_PROGRESS, countNewEntries);
 			rssManager->parsedEntriesCount++;
 		}
 		item = item->next_sibling("entry");
 		//DebugPrintDate(&itemDatetime);
 	}
+	
+	if(countNewEntries == 0)
+		feed::ParsePrintStatus(rssUrl, FINISHED_NOCHANGE, countNewEntries);
+	else
+		feed::ParsePrintStatus(rssUrl, FINISHED_UPDATED, countNewEntries);
+	
 	feed::UpdateRecord(rssUrl.url, &headerDatetime);
 	//DebugPrintDate(&headerDatetime);
+	
 	return 0;
 }
 
@@ -324,9 +385,10 @@ int feed::Fetch(rss_url &rssUrl){
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYSTATUS, 0);
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/4.0");
    	curl_easy_setopt(curl, CURLOPT_AUTOREFERER, 1);
-	curl_easy_setopt(curl, CURLOPT_CAINFO, "cacert.pem");
+	curl_easy_setopt(curl, CURLOPT_CAINFO, "../server/cacert.pem");
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWriteData);
-    	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15L);
 	
 	res = curl_easy_perform(curl);
  	if(res != CURLE_OK){

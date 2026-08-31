@@ -46,9 +46,14 @@ int tabs_updateDisplayMode(tab * target){
 		if(display_mode == 1) num_pages = (absolute_pos) / (winSZ[1]-3);
 		
 		if(num_pages){
+			if (selected_tab->tab_mode == TAB_WEBFEEDS){
+				selected_tab->line_offset = absolute_pos-1;
+				selected_tab->sel = 1;
+			} else {
 				selected_tab->line_offset = absolute_pos-1;
 				selected_tab->offset->entry = getNextEntry(selected_tab->old_entry, PREVIOUS);
 				selected_tab->sel = 1;
+			}
 		}
 	}
 	return 0;
