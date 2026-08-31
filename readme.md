@@ -2,7 +2,7 @@
 
 ![Capture](Images/capture.PNG)
 
-**Koala News** is a minimalist, keyboard-driven terminal feed reader designed for Windows. It features a fast C-based client (`news.exe`) with tabbed browsing and a C++ feed fetcher that uses `libcurl` and `rapidxml` to parse RSS and Atom feeds.
+**Koala News** is my minimalist, keyboard-driven terminal feed reader designed for Windows. It features a fast C-based client (`news.exe`) with tabbed browsing and a C++ feed fetcher that uses `libcurl` and `rapidxml` to parse RSS and Atom feeds. Make sure to run it on a terminal that supports ANSI escape sequences.
 
 ---
 
@@ -15,23 +15,6 @@
 - **Custom Categorization:** Organize RSS/Atom feeds into custom group tabs (e.g., tech, sports, world).
 - **Blacklists:** Filter out feed items dynamically using URL-based and word-based exclusion rules.
 - **SQLite-Free Storage:** Fast loading utilizing flat files stored in AppData.
-
----
-
-## Directory Structure
-
-- [client/](file:///C:/Users/gsppe/wezterm/news/project_files/client/) — Source files for the terminal client interface.
-  - [client/main.c](file:///C:/Users/gsppe/wezterm/news/project_files/client/main.c) — Main application entry, window resizing loop, and input handling.
-  - [client/ui.c](file:///C:/Users/gsppe/wezterm/news/project_files/client/ui.c) — Renders the dual-pane or single-pane list and tab headers.
-  - [client/nav.c](file:///C:/Users/gsppe/wezterm/news/project_files/client/nav.c) — Navigation logic for list selector operations.
-  - [client/tabs.c](file:///C:/Users/gsppe/wezterm/news/project_files/client/tabs.c) — Core tab management logic.
-  - [client/cmd.c](file:///C:/Users/gsppe/wezterm/news/project_files/client/cmd.c) — Parses commands executed from command mode.
-  - [client/loadfiles.c](file:///C:/Users/gsppe/wezterm/news/project_files/client/loadfiles.c) — Loads the entry data and handles read/unread flags.
-- [server/](file:///C:/Users/gsppe/wezterm/news/project_files/server/) — Source files for the feed updater daemon/backend.
-  - [server/koalaServer.cpp](file:///C:/Users/gsppe/wezterm/news/project_files/server/koalaServer.cpp) — Command-line interface for updating feeds or running tests.
-  - [server/feed.cpp](file:///C:/Users/gsppe/wezterm/news/project_files/server/feed.cpp) — Fetches feeds using `libcurl` and processes parsed output.
-  - [server/blacklist.cpp](file:///C:/Users/gsppe/wezterm/news/project_files/server/blacklist.cpp) — Word- and URL-filtering logic.
-  - [server/groups.cpp](file:///C:/Users/gsppe/wezterm/news/project_files/server/groups.cpp) — Reads and structures custom categorization groups.
 
 ---
 
@@ -165,3 +148,26 @@ Press <kbd>:</kbd> while viewing the feed to open the prompt. The command line f
 - <kbd>Ctrl+V</kbd> / <kbd>Right Click</kbd> — Paste long URLs directly into the prompt.
 - <kbd>Backspace</kbd> — Erase character. Exits command mode if the buffer is empty.
 - <kbd>Enter</kbd> — Run command.
+
+---
+
+## Directory Structure
+
+- [client/](file:///C:/Users/gsppe/wezterm/news/project_files/client/) — Source files for the terminal client interface.
+  - [client/main.c](file:///C:/Users/gsppe/wezterm/news/project_files/client/main.c) — Main application entry, window resizing loop, and input handling.
+  - [client/ui.c](file:///C:/Users/gsppe/wezterm/news/project_files/client/ui.c) — Renders the dual-pane or single-pane list and tab headers.
+  - [client/nav.c](file:///C:/Users/gsppe/wezterm/news/project_files/client/nav.c) — Navigation logic for list selector operations.
+  - [client/tabs.c](file:///C:/Users/gsppe/wezterm/news/project_files/client/tabs.c) — Core tab management logic.
+  - [client/cmd.c](file:///C:/Users/gsppe/wezterm/news/project_files/client/cmd.c) — Parses commands executed from command mode.
+  - [client/loadfiles.c](file:///C:/Users/gsppe/wezterm/news/project_files/client/loadfiles.c) — Loads the entry data and handles read/unread flags.
+- [server/](file:///C:/Users/gsppe/wezterm/news/project_files/server/) — Source files for the feed updater daemon/backend.
+  - [server/koalaServer.cpp](file:///C:/Users/gsppe/wezterm/news/project_files/server/koalaServer.cpp) — Command-line interface for updating feeds or running tests.
+  - [server/feed.cpp](file:///C:/Users/gsppe/wezterm/news/project_files/server/feed.cpp) — Fetches feeds using `libcurl` and processes parsed output.
+  - [server/blacklist.cpp](file:///C:/Users/gsppe/wezterm/news/project_files/server/blacklist.cpp) — Word- and URL-filtering logic.
+  - [server/groups.cpp](file:///C:/Users/gsppe/wezterm/news/project_files/server/groups.cpp) — Reads and structures custom categorization groups.
+
+---
+
+### TO-DO
+
+- Port to Linux
