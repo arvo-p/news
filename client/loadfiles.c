@@ -402,7 +402,7 @@ int LOAD_GetEntry(char * line, entry * new_entry, entry ** previous_entry, int *
 	memset(groups, 0, sizeof(groups));
 	int g_count = 0, n_count = 0;
 
-	int sz = strlen(args[3]);
+	int sz = args[3] ? strlen(args[3]) : 0;
 
 	for(int k=0;k<sz;k++){
 		if(isdigit(*(args[3]+k)) && n_count < sizeof(n)-1) n[n_count++] = *(args[3]+k);

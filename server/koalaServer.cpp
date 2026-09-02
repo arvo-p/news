@@ -63,8 +63,16 @@ void testLocalFile(string filename){
 		if(args.empty()) continue;
 
 		rss_url newFeed;
-		if(groupManager->isLoaded && args.size() > 1){
-			groups_vec = ParseArguments(args[1]);
+		string groups_str = "";
+		for (int i = 1; i < args.size(); i++) {
+			if (args[i].size() > 0 && args[i][0] == '[') {
+				groups_str = args[i];
+				break;
+			}
+		}
+
+		if(groupManager->isLoaded && groups_str.length() > 0){
+			groups_vec = ParseArguments(groups_str);
 			for(int i=0;i<groups_vec.size();i++){
 				for(custom_group registered: groupManager->groupList){
 					if(IsNumber(groups_vec[i])){

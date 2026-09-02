@@ -74,7 +74,7 @@ bool feed::UpdateRecord(string &urlSrc, struct tm * t){
 	ostringstream filetext;
 	string line;
 	char output_date[20];
-	uint8_t unit_separator = 31;
+	char unit_separator = 31;
 
 	fr.open(pathManager->updateRecordFilePath);
 	strftime(output_date, 20, "%Y-%m-%dT%H:%M:%S", t);
@@ -82,7 +82,12 @@ bool feed::UpdateRecord(string &urlSrc, struct tm * t){
 	filetext << urlSrc << unit_separator << output_date << endl;
 	if(fr.is_open()){
 		while(getline(fr, line)){	
-			if(line.find(urlSrc) == -1) filetext << line << endl;
+			int sep_pos = line.find(unit_separator);
+			if(sep_pos != string::npos && line.substr(0, sep_pos) != urlSrc){
+				filetext << line << endl;
+			} else if (sep_pos == string::npos) {
+				filetext << line << endl;
+			}
 		}		
 	}
 	fr.close();
@@ -100,12 +105,13 @@ bool feed::CompareToLastUpdate(string &urlSrc, struct tm * param_t){
 	string saved_date_str;
 	struct tm saved_date;
 	bool found = false;
+	char unit_separator = 31;
 
 	if(f.is_open()){
 		while(getline(f, line)){
-			int offset = line.find(urlSrc);
-			if(offset!=-1){
-				saved_date_str = line.substr(urlSrc.length()+1);
+			int sep_pos = line.find(unit_separator);
+			if(sep_pos != string::npos && line.substr(0, sep_pos) == urlSrc){
+				saved_date_str = line.substr(sep_pos + 1);
 				found = true;
 			}
 		}
@@ -199,24 +205,27 @@ int feed::Parse(string &buffer, rss_url &rssUrl){
 
 int feed::ParseRss(rss_url &rssUrl, rapidxml::xml_node<> *node){
 	rapidxml::xml_node<> *item, *title_node, *link_node, *pdate_node;
-	string pubdate_str;
+	string channel_date_str = "";
 
 	node = node->first_node("channel");
-	pdate_node = node->first_node("published");
 	pdate_node = node->first_node("lastBuildDate");
 	if(pdate_node == NULL) pdate_node = node->first_node("pubDate");
+	if(pdate_node == NULL) pdate_node = node->first_node("published");
 	
-	item = node->first_node("item");
-	pubdate_str = pdate_node->value();
-	if(feed::VerifyEntryDate(rssUrl.url, pubdate_str) == false){
-		feed::ParsePrintStatus(rssUrl, FINISHED_NOCHANGE, 0); 
-		return 1;
+	if(pdate_node != NULL) {
+		channel_date_str = pdate_node->value();
+		if(feed::VerifyEntryDate(rssUrl.url, channel_date_str) == false){
+			feed::ParsePrintStatus(rssUrl, FINISHED_NOCHANGE, 0); 
+			return 1;
+		}
 	}
 
-	struct tm t;
-	ParseAnyDatetime(pubdate_str, &t);
+	item = node->first_node("item");
 
 	int countNewEntries = 0;
+	struct tm tmNew;
+	bool tmNewInit = false;
+
 	while(item){
 		string link_str, title_str, pubdate_str;
 		link_node = item->first_node("link");
@@ -234,6 +243,16 @@ int feed::ParseRss(rss_url &rssUrl, rapidxml::xml_node<> *node){
 			else title_str="NO TITLE";
 		}
 		
+		struct tm itemDatetime;
+		if(ParseAnyDatetime(pubdate_str, &itemDatetime) == 0) {
+			if(!tmNewInit) {
+				tmNew = itemDatetime;
+				tmNewInit = true;
+			} else if (CompareDates(&itemDatetime, &tmNew) == 1) {
+				tmNew = itemDatetime;
+			}
+		}
+
 		bool blacklisted = blacklistManager->Check(title_str,link_str); 
 		bool isEntryNew = feed::VerifyEntryDate(rssUrl.url,pubdate_str);
 
@@ -246,7 +265,15 @@ int feed::ParseRss(rss_url &rssUrl, rapidxml::xml_node<> *node){
 		item = item->next_sibling("item");
 	}
 
-	feed::UpdateRecord(rssUrl.url, &t);
+	if(tmNewInit) {
+		feed::UpdateRecord(rssUrl.url, &tmNew);
+	} else if(channel_date_str.length() > 0) {
+		struct tm t;
+		if(ParseAnyDatetime(channel_date_str, &t) == 0) {
+			feed::UpdateRecord(rssUrl.url, &t);
+		}
+	}
+
 	if(countNewEntries == 0)
 		feed::ParsePrintStatus(rssUrl, FINISHED_NOCHANGE, countNewEntries);
 	else
